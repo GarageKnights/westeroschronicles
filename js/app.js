@@ -1,14 +1,7 @@
 (() => {
   "use strict";
 
-  // ---- Constants & storage keys ----
-
-  const STORAGE_KEYS = {
-    PROFILE: "wc_profile",
-    STORIES: "wc_stories",
-    RAVENS: "wc_ravens",
-    VOTES_PREFIX: "wc_votes_", // + username
-  };
+  // ---- Constants ----
 
   const REGIONS = [
     "The North",
@@ -22,9 +15,12 @@
     "Beyond the Wall",
   ];
 
-  let currentUser = null;
-  let stories = [];
-  let ravens = [];
+  const SETTINGS_PREFIX = "wc_settings_"; // + username
+
+  let currentUser = null; // Supabase profile + local settings
+  let stories = [];       // From Supabase
+  let ravens = [];        // From Supabase
+  let userVotesMap = {};  // story_id -> value
   let currentStoryForModal = null;
   let currentParentStoryId = null;
 
@@ -34,7 +30,7 @@
     return document.getElementById(id);
   }
 
-  function generateId() {
+  function generateLocalId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
@@ -69,20 +65,12 @@
     });
   }
 
-  function getUserVotesKey(username) {
-    return STORAGE_KEYS.VOTES_PREFIX + username;
+  function getUserSettings(username) {
+    return loadJSON(SETTINGS_PREFIX + username, { snow: false });
   }
 
-  function getUserVotes(username) {
-    return loadJSON(getUserVotesKey(username), {});
-  }
-
-  function saveUserVotes(username, votes) {
-    saveJSON(getUserVotesKey(username), votes);
-  }
-
-  function cloneStoriesSorted() {
-    return [...stories];
+  function saveUserSettings(username, settings) {
+    saveJSON(SETTINGS_PREFIX + username, settings);
   }
 
   function getStoryById(id) {
@@ -105,6 +93,22 @@
 
   function getStoryScore(story) {
     return (story.upvotes || 0) - (story.downvotes || 0);
+  }
+
+  // Map DB row -> in-app story object
+  function mapStoryRow(row) {
+    return {
+      id: row.id,
+      title: row.title,
+      region: row.region,
+      content: row.content,
+      author: row.author_username,
+      house: row.house,
+      createdAt: row.created_at,
+      upvotes: row.upvotes || 0,
+      downvotes: row.downvotes || 0,
+      parentId: row.parent_story_id,
+    };
   }
 
   // ---- Domain enforcement ----
@@ -166,11 +170,10 @@
     snowInitialized = false;
   }
 
-  // ---- Login / Profile ----
+  // ---- Login / Profile (Supabase) ----
 
   function applyHouseTheme(house) {
     const body = document.body;
-    // Clear previous house-* classes
     body.className = body.className
       .split(" ")
       .filter((c) => !c.startsWith("house-"))
@@ -180,6 +183,16 @@
       const normalized = house.replace(/\s+/g, "-");
       body.classList.add(`house-${normalized}`);
     }
+  }
+
+  function escapeHtml(str) {
+    if (typeof str !== "string") return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/'/g, "&#039;");
   }
 
   function renderUserStatus() {
@@ -195,70 +208,13 @@
     `;
   }
 
-  function escapeHtml(str) {
-    if (typeof str !== "string") return "";
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function initLoginOverlay() {
-    const overlay = $("loginOverlay");
-    const usernameInput = $("usernameInput");
-    const houseSelect = $("houseSelect");
-    const createBtn = $("createProfileBtn");
-    const errorEl = $("loginError");
-
-    createBtn.addEventListener("click", () => {
-      const name = (usernameInput.value || "").trim();
-      const house = houseSelect.value || "";
-      if (!name || name.length < 2) {
-        errorEl.textContent = "Choose a name of at least 2 characters.";
-        return;
-      }
-      if (!house) {
-        errorEl.textContent = "Choose a house to swear your banner to.";
-        return;
-      }
-
-      const profile = {
-        username: name,
-        house,
-        bio: "",
-        settings: {
-          snow: false,
-        },
-      };
-
-      currentUser = profile;
-      saveJSON(STORAGE_KEYS.PROFILE, profile);
-      applyHouseTheme(house);
-      renderUserStatus();
-      overlay.style.display = "none";
-      initPostLogin();
-    });
-  }
-
-  function loadExistingProfile() {
-    const profile = loadJSON(STORAGE_KEYS.PROFILE, null);
-    if (!profile || !profile.username) {
-      $("loginOverlay").style.display = "flex";
-      return false;
-    }
-    currentUser = profile;
-    applyHouseTheme(profile.house);
-    renderUserStatus();
-    $("loginOverlay").style.display = "none";
-
-    // Snow
-    if (profile.settings && profile.settings.snow) {
-      $("toggleSnow").checked = true;
-      enableSnow();
-    }
-    return true;
+  async function saveProfileBio(bio) {
+    if (!currentUser) return;
+    const { error } = await window.supabaseClient
+      .from("profiles")
+      .update({ bio })
+      .eq("id", currentUser.id);
+    if (error) throw error;
   }
 
   function initProfileUI() {
@@ -272,41 +228,44 @@
       bioField.value = currentUser.bio;
     }
 
-    saveBtn.addEventListener("click", () => {
+    if (currentUser && currentUser.settings && currentUser.settings.snow) {
+      toggleSnowEl.checked = true;
+      enableSnow();
+    }
+
+    saveBtn.addEventListener("click", async () => {
+      if (!currentUser) return;
       const bio = bioField.value || "";
       currentUser.bio = bio;
-      saveJSON(STORAGE_KEYS.PROFILE, currentUser);
-      renderProfileCard();
-      renderProfileStatsAndAchievements();
-      statusEl.textContent = "Profile saved.";
+      try {
+        await saveProfileBio(bio);
+        renderProfileCard();
+        renderProfileStatsAndAchievements();
+        statusEl.textContent = "Profile saved.";
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "Error saving profile.";
+      }
       setTimeout(() => {
         statusEl.textContent = "";
       }, 2000);
     });
 
     toggleSnowEl.addEventListener("change", () => {
+      if (!currentUser) return;
       const isOn = toggleSnowEl.checked;
       if (!currentUser.settings) currentUser.settings = {};
       currentUser.settings.snow = isOn;
-      saveJSON(STORAGE_KEYS.PROFILE, currentUser);
-      if (isOn) {
-        enableSnow();
-      } else {
-        disableSnow();
-      }
+      saveUserSettings(currentUser.username, currentUser.settings);
+      if (isOn) enableSnow();
+      else disableSnow();
     });
 
-    logoutBtn.addEventListener("click", () => {
-      if (!confirm("This will clear your persona and local data. Continue?")) {
-        return;
-      }
-      localStorage.removeItem(STORAGE_KEYS.PROFILE);
-      // keep stories & ravens so other personas can see them, but clear votes for this user
+    logoutBtn.addEventListener("click", async () => {
       if (currentUser && currentUser.username) {
-        localStorage.removeItem(getUserVotesKey(currentUser.username));
+        localStorage.removeItem(SETTINGS_PREFIX + currentUser.username);
       }
-      currentUser = null;
-      window.location.reload();
+      await window.logoutAndRedirect();
     });
 
     renderProfileCard();
@@ -317,7 +276,7 @@
     if (!currentUser) return;
     const container = $("profileInfo");
     const initials = (currentUser.username || "?")
-      .split(/\s+/)
+      .split(/\s+/g)
       .map((p) => p[0] || "")
       .join("")
       .slice(0, 2)
@@ -344,12 +303,10 @@
     const userStories = stories.filter(
       (s) => s.author === currentUser.username
     );
-    const userComments = stories.reduce((count, s) => {
-      const comments = s.comments || [];
-      return (
-        count + comments.filter((c) => c.author === currentUser.username).length
-      );
-    }, 0);
+
+    // comments are in DB; for now we won't count them precisely without another query
+    // but we can leave comments count as "N/A" or 0 for v1 DB
+    const userComments = 0;
 
     const totalScore = userStories.reduce(
       (sum, s) => sum + getStoryScore(s),
@@ -462,14 +419,39 @@
     if (btn) btn.click();
   }
 
-  // ---- Stories ----
+  // ---- Stories (Supabase) ----
 
-  function loadStories() {
-    stories = loadJSON(STORAGE_KEYS.STORIES, []);
+  async function loadStoriesFromSupabase() {
+    const { data, error } = await window.supabaseClient
+      .from("stories")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading stories:", error);
+      stories = [];
+    } else {
+      stories = (data || []).map(mapStoryRow);
+    }
   }
 
-  function saveStories() {
-    saveJSON(STORAGE_KEYS.STORIES, stories);
+  async function loadUserVotesFromSupabase() {
+    userVotesMap = {};
+    if (!currentUser) return;
+
+    const { data, error } = await window.supabaseClient
+      .from("votes")
+      .select("*")
+      .eq("voter_profile_id", currentUser.id);
+
+    if (error) {
+      console.error("Error loading votes:", error);
+      return;
+    }
+
+    (data || []).forEach((row) => {
+      userVotesMap[row.story_id] = row.value;
+    });
   }
 
   function initStoriesUI() {
@@ -489,7 +471,7 @@
     renderStories();
   }
 
-  function handleSubmitStory() {
+  async function handleSubmitStory() {
     if (!currentUser) return;
 
     const title = ($("storyTitle").value || "").trim();
@@ -502,38 +484,49 @@
       return;
     }
 
-    const story = {
-      id: generateId(),
-      title,
-      region,
-      content,
-      author: currentUser.username,
-      house: currentUser.house || "",
-      createdAt: new Date().toISOString(),
-      upvotes: 0,
-      downvotes: 0,
-      parentId: currentParentStoryId || null,
-      comments: [],
-    };
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("stories")
+        .insert({
+          title,
+          region,
+          content,
+          author_profile_id: currentUser.id,
+          author_username: currentUser.username,
+          house: currentUser.house || null,
+          parent_story_id: currentParentStoryId || null,
+        })
+        .select()
+        .single();
 
-    stories.push(story);
-    saveStories();
+      if (error) {
+        console.error("Error inserting story:", error);
+        statusEl.textContent = "Error saving chapter.";
+        return;
+      }
 
-    $("storyTitle").value = "";
-    $("storyRegion").value = "";
-    $("storyContent").value = "";
-    currentParentStoryId = null;
-    updateSubmitParentInfo();
+      const newStory = mapStoryRow(data);
+      stories.unshift(newStory);
 
-    statusEl.textContent = "Chapter saved locally.";
-    setTimeout(() => {
-      statusEl.textContent = "";
-    }, 2000);
+      $("storyTitle").value = "";
+      $("storyRegion").value = "";
+      $("storyContent").value = "";
+      currentParentStoryId = null;
+      updateSubmitParentInfo();
 
-    renderStories();
-    renderRealmMap();
-    renderProfileStatsAndAchievements();
-    switchToTab("stories");
+      statusEl.textContent = "Chapter saved to the realm.";
+      setTimeout(() => {
+        statusEl.textContent = "";
+      }, 2000);
+
+      renderStories();
+      renderRealmMap();
+      renderProfileStatsAndAchievements();
+      switchToTab("stories");
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = "Error saving chapter.";
+    }
   }
 
   function updateSubmitParentInfo() {
@@ -563,7 +556,7 @@
     const regionFilter = $("storiesRegionFilter").value || "";
     const sortBy = $("storiesSort").value || "newest";
 
-    let filtered = cloneStoriesSorted();
+    let filtered = [...stories];
 
     if (searchTerm) {
       filtered = filtered.filter((s) => {
@@ -588,7 +581,8 @@
       filtered.sort((a, b) => getStoryScore(b) - getStoryScore(a));
     } else if (sortBy === "branched") {
       filtered.sort(
-        (a, b) => getChildrenOfStory(b.id).length - getChildrenOfStory(a.id).length
+        (a, b) =>
+          getChildrenOfStory(b.id).length - getChildrenOfStory(a.id).length
       );
     }
 
@@ -600,10 +594,6 @@
 
     emptyEl.style.display = "none";
 
-    const userVotes = currentUser
-      ? getUserVotes(currentUser.username)
-      : {};
-
     listEl.innerHTML = filtered
       .map((s) => {
         const excerpt =
@@ -613,7 +603,7 @@
 
         const score = getStoryScore(s);
         const branchCount = getChildrenOfStory(s.id).length;
-        const userVote = userVotes[s.id] || 0;
+        const userVote = userVotesMap[s.id] || 0;
 
         return `
         <article class="story-card" data-id="${s.id}">
@@ -632,13 +622,9 @@
             </div>
             <div class="story-actions">
               <span class="vote-chip">
-                <button type="button" class="js-vote" data-vote="up" ${
-                  userVote === 1 ? "aria-pressed='true' class='active'" : ""
-                }>+</button>
+                <button type="button" class="js-vote ${userVote === 1 ? "active" : ""}" data-vote="up">+</button>
                 <span>${score}</span>
-                <button type="button" class="js-vote" data-vote="down" ${
-                  userVote === -1 ? "aria-pressed='true' class='active'" : ""
-                }>-</button>
+                <button type="button" class="js-vote ${userVote === -1 ? "active" : ""}" data-vote="down">-</button>
               </span>
               ${
                 branchCount
@@ -652,7 +638,6 @@
       })
       .join("");
 
-    // Attach events
     Array.from(listEl.querySelectorAll(".story-card")).forEach((card) => {
       const id = card.getAttribute("data-id");
       const story = getStoryById(id);
@@ -675,14 +660,13 @@
     });
   }
 
-  function handleVoteClick(storyId, btn) {
+  async function handleVoteClick(storyId, btn) {
     if (!currentUser) return;
-    const voteType = btn.getAttribute("data-vote");
     const story = getStoryById(storyId);
     if (!story) return;
 
-    const votes = getUserVotes(currentUser.username);
-    const prevVote = votes[storyId] || 0;
+    const voteType = btn.getAttribute("data-vote");
+    const prevVote = userVotesMap[storyId] || 0;
     let newVote = prevVote;
 
     if (voteType === "up") {
@@ -691,20 +675,63 @@
       newVote = prevVote === -1 ? 0 : -1;
     }
 
-    // Adjust counts based on change
+    // Update counts locally
     if (prevVote === 1) story.upvotes -= 1;
     if (prevVote === -1) story.downvotes -= 1;
     if (newVote === 1) story.upvotes += 1;
     if (newVote === -1) story.downvotes += 1;
 
-    votes[storyId] = newVote;
-    saveUserVotes(currentUser.username, votes);
-    saveStories();
-    renderStories();
-    renderProfileStatsAndAchievements();
+    try {
+      // Upsert vote
+      const { error: voteError } = await window.supabaseClient
+        .from("votes")
+        .upsert({
+          story_id: storyId,
+          voter_profile_id: currentUser.id,
+          value: newVote,
+        });
+
+      if (voteError) {
+        console.error("Error saving vote:", voteError);
+      } else {
+        userVotesMap[storyId] = newVote;
+      }
+
+      // Update story counts
+      const { error: storyError } = await window.supabaseClient
+        .from("stories")
+        .update({
+          upvotes: story.upvotes,
+          downvotes: story.downvotes,
+        })
+        .eq("id", storyId);
+
+      if (storyError) {
+        console.error("Error updating story score:", storyError);
+      }
+
+      renderStories();
+      renderProfileStatsAndAchievements();
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-  // ---- Story modal & comments ----
+  // ---- Story modal & comments (Supabase) ----
+
+  async function loadCommentsForStory(storyId) {
+    const { data, error } = await window.supabaseClient
+      .from("comments")
+      .select("*")
+      .eq("story_id", storyId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error loading comments:", error);
+      return [];
+    }
+    return data || [];
+  }
 
   function initStoryModal() {
     const modal = $("storyModal");
@@ -723,13 +750,20 @@
     });
   }
 
-  function openStoryModal(storyId) {
+  async function openStoryModal(storyId) {
     const story = getStoryById(storyId);
     if (!story) return;
 
     currentStoryForModal = story;
     const container = $("storyModalContent");
-    const comments = story.comments || [];
+
+    const commentsRows = await loadCommentsForStory(storyId);
+    const comments = commentsRows.map((c) => ({
+      id: c.id,
+      author: c.author_username,
+      text: c.text,
+      createdAt: c.created_at,
+    }));
 
     const children = getChildrenOfStory(story.id);
     const root = getRootOfStory(story);
@@ -793,22 +827,31 @@
     const modal = $("storyModal");
     modal.hidden = false;
 
-    $("modalCommentBtn").addEventListener("click", () => {
+    $("modalCommentBtn").addEventListener("click", async () => {
       if (!currentUser || !currentStoryForModal) return;
       const text = ($("modalCommentInput").value || "").trim();
       if (!text) return;
 
-      if (!currentStoryForModal.comments) currentStoryForModal.comments = [];
-      currentStoryForModal.comments.push({
-        id: generateId(),
-        author: currentUser.username,
-        text,
-        createdAt: new Date().toISOString(),
-      });
-      saveStories();
-      renderStories();
-      renderProfileStatsAndAchievements();
-      openStoryModal(currentStoryForModal.id); // re-render
+      try {
+        const { error } = await window.supabaseClient
+          .from("comments")
+          .insert({
+            story_id: currentStoryForModal.id,
+            author_profile_id: currentUser.id,
+            author_username: currentUser.username,
+            text,
+          });
+
+        if (error) {
+          console.error("Error adding comment:", error);
+          return;
+        }
+
+        $("modalCommentInput").value = "";
+        await openStoryModal(currentStoryForModal.id); // reload modal
+      } catch (e) {
+        console.error(e);
+      }
     });
   }
 
@@ -921,14 +964,28 @@
     });
   }
 
-  // ---- Ravens ----
+  // ---- Ravens (Supabase) ----
 
-  function loadRavens() {
-    ravens = loadJSON(STORAGE_KEYS.RAVENS, []);
-  }
+  async function loadRavensFromSupabase() {
+    if (!currentUser) {
+      ravens = [];
+      return;
+    }
 
-  function saveRavens() {
-    saveJSON(STORAGE_KEYS.RAVENS, ravens);
+    const username = currentUser.username;
+
+    const { data, error } = await window.supabaseClient
+      .from("ravens")
+      .select("*")
+      .or(`to_username.eq.${username},from_username.eq.${username}`)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading ravens:", error);
+      ravens = [];
+    } else {
+      ravens = data || [];
+    }
   }
 
   function initRavensUI() {
@@ -936,7 +993,7 @@
     renderRavens();
   }
 
-  function sendRaven() {
+  async function sendRaven() {
     if (!currentUser) return;
 
     const recipient = ($("ravenRecipient").value || "").trim();
@@ -948,25 +1005,35 @@
       return;
     }
 
-    const raven = {
-      id: generateId(),
-      from: currentUser.username,
-      to: recipient,
-      body: message,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const { error } = await window.supabaseClient
+        .from("ravens")
+        .insert({
+          from_profile_id: currentUser.id,
+          from_username: currentUser.username,
+          to_username: recipient,
+          body: message,
+        });
 
-    ravens.push(raven);
-    saveRavens();
+      if (error) {
+        console.error("Error sending raven:", error);
+        statusEl.textContent = "Error sending raven.";
+        return;
+      }
 
-    $("ravenRecipient").value = "";
-    $("ravenMessage").value = "";
-    statusEl.textContent = "Raven sent (locally).";
-    setTimeout(() => {
-      statusEl.textContent = "";
-    }, 2000);
+      $("ravenRecipient").value = "";
+      $("ravenMessage").value = "";
+      statusEl.textContent = "Raven sent to the realm.";
+      setTimeout(() => {
+        statusEl.textContent = "";
+      }, 2000);
 
-    renderRavens();
+      await loadRavensFromSupabase();
+      renderRavens();
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = "Error sending raven.";
+    }
   }
 
   function renderRavens() {
@@ -977,13 +1044,8 @@
     const inboxEmptyEl = $("ravenInboxEmpty");
     const sentEmptyEl = $("ravenSentEmpty");
 
-    const inbox = ravens
-      .filter((r) => r.to === currentUser.username)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    const sent = ravens
-      .filter((r) => r.from === currentUser.username)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const inbox = ravens.filter((r) => r.to_username === currentUser.username);
+    const sent = ravens.filter((r) => r.from_username === currentUser.username);
 
     if (!inbox.length) {
       inboxEl.innerHTML = "";
@@ -995,8 +1057,8 @@
           (r) => `
         <article class="raven-card">
           <div class="raven-meta">
-            From <strong>${escapeHtml(r.from)}</strong>
-            • ${escapeHtml(formatDate(r.createdAt))}
+            From <strong>${escapeHtml(r.from_username)}</strong>
+            • ${escapeHtml(formatDate(r.created_at))}
           </div>
           <div class="raven-body">${escapeHtml(r.body)}</div>
         </article>
@@ -1015,8 +1077,8 @@
           (r) => `
         <article class="raven-card">
           <div class="raven-meta">
-            To <strong>${escapeHtml(r.to)}</strong>
-            • ${escapeHtml(formatDate(r.createdAt))}
+            To <strong>${escapeHtml(r.to_username)}</strong>
+            • ${escapeHtml(formatDate(r.created_at))}
           </div>
           <div class="raven-body">${escapeHtml(r.body)}</div>
         </article>
@@ -1028,9 +1090,10 @@
 
   // ---- Post-login initialization ----
 
-  function initPostLogin() {
-    loadStories();
-    loadRavens();
+  async function initPostLogin() {
+    await loadStoriesFromSupabase();
+    await loadUserVotesFromSupabase();
+    await loadRavensFromSupabase();
 
     initTabs();
     initStoriesUI();
@@ -1040,15 +1103,30 @@
     renderRealmMap();
   }
 
-  // ---- Startup ----
+  // ---- Startup (Supabase auth enforced) ----
 
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
     enforceDomain();
-    initLoginOverlay();
 
-    const hasProfile = loadExistingProfile();
-    if (hasProfile) {
-      initPostLogin();
+    const user = await window.requireAuthOrRedirect();
+    if (!user) return;
+
+    const profile = await window.getCurrentProfile();
+    if (!profile) {
+      console.error("No profile found for authenticated user.");
+      return;
     }
+
+    const settings = getUserSettings(profile.username);
+
+    currentUser = {
+      ...profile,
+      settings,
+    };
+
+    applyHouseTheme(currentUser.house);
+    renderUserStatus();
+
+    await initPostLogin();
   });
 })();

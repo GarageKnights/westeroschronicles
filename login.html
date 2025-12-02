@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <title>Westeros Chronicles – Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js" defer></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .auth-card {
+      max-width: 420px;
+      width: 100%;
+    }
+    .auth-note {
+      font-size: 0.8rem;
+      opacity: 0.8;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body class="app-root">
+  <div class="app-shell">
+    <header class="app-header">
+      <h1 class="app-title">Westeros Chronicles</h1>
+      <p class="app-subtitle">Only the sworn may enter</p>
+    </header>
+
+    <main class="app-main">
+      <section class="card auth-card">
+        <h2>Log in</h2>
+
+        <form id="login-form" class="form-grid">
+          <label class="form-field">
+            <span>Username</span>
+            <input type="text" id="login-username" required />
+          </label>
+
+          <label class="form-field">
+            <span>Password</span>
+            <input type="password" id="login-password" required />
+          </label>
+
+          <button type="submit" class="btn btn-primary">Enter</button>
+
+          <p class="auth-note">
+            New to the realm? <a href="signup.html">Swear your name</a>.
+          </p>
+
+          <p class="auth-note">
+            Forgot your password? If your email is confirmed, you can reset it from a future
+            “forgot password” link (we can add this later).
+          </p>
+
+          <p id="login-error" class="auth-note" style="color: #ff6b6b;"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("login-form");
+    const loginError = document.getElementById("login-error");
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginError.textContent = "";
+
+      const username = document.getElementById("login-username").value.trim();
+      const password = document.getElementById("login-password").value;
+
+      if (!username || !password) {
+        loginError.textContent = "Both fields are required.";
+        return;
+      }
+
+      try {
+        // 1. Look up email for this username
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from("profiles")
+          .select("id, email, username")
+          .ilike("username", username)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error(profileError);
+          loginError.textContent = "Error looking up username.";
+          return;
+        }
+
+        if (!profile) {
+          loginError.textContent = "No account found with that username.";
+          return;
+        }
+
+        const email = profile.email;
+
+        // 2. Sign in with email + password (Supabase auth)
+        const { data: signInData, error: signInError } = await window.supabaseClient.auth.signInWithPassword(
+          {
+            email,
+            password,
+          }
+        );
+
+        if (signInError) {
+          console.error(signInError);
+          loginError.textContent = signInError.message || "Login failed.";
+          return;
+        }
+
+        // 3. Redirect to app
+        window.location.href = "index.html";
+      } catch (err) {
+        console.error(err);
+        loginError.textContent = "Unexpected error during login.";
+      }
+    });
+  </script>
+</body>
+</html>
