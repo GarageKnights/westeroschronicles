@@ -1,8 +1,11 @@
 // js/auth.js
 
 // 1. Configure Supabase client
-const SUPABASE_URL = "https://zzclyitigpxoqbhzuzrs.supabase.co"; // <- replace
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6Y2x5aXRpZ3B4b3FiaHp1enJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MDczMTIsImV4cCI6MjA4MDE4MzMxMn0.LAyR7XCgkUPBd00KAPELmq3XQcwDiMsHo8UU94jBQOY";        // <- replace
+// Get these from your Supabase project settings:
+// - Project URL (API -> "Project URL")
+// - anon public key (API -> "anon public")
+const SUPABASE_URL = "https://zzclyitigpxoqbhzuzrs.supabase.co"; // keep if this is your real URL
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6Y2x5aXRpZ3B4b3FiaHp1enJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MDczMTIsImV4cCI6MjA4MDE4MzMxMn0.LAyR7XCgkUPBd00KAPELmq3XQcwDiMsHo8UU94jBQOY";       // NO "..." anywhere
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -14,7 +17,6 @@ async function requireAuthOrRedirect() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    // Not logged in: go to login page
     window.location.href = "login.html";
     return null;
   }
