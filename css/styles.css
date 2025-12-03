@@ -138,6 +138,30 @@ body {
 }
 
 /* Header */
+.site-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.auth-links {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.auth-links a {
+  font-size: 0.85rem;
+  text-decoration: none;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.24));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.auth-links a:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
 
 .site-header {
   background: radial-gradient(circle at top, #3b2820 0, #1b1410 40%, #0c0604 100%);

@@ -30,10 +30,6 @@
     return document.getElementById(id);
   }
 
-  function generateLocalId() {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-
   function loadJSON(key, fallback) {
     try {
       const val = localStorage.getItem(key);
@@ -95,7 +91,6 @@
     return (story.upvotes || 0) - (story.downvotes || 0);
   }
 
-  // Map DB row -> in-app story object
   function mapStoryRow(row) {
     return {
       id: row.id,
@@ -190,15 +185,18 @@
     return str
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&quot;")
-      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
 
   function renderUserStatus() {
     const statusEl = $("userStatus");
+    if (!statusEl) return;
+
     if (!currentUser) {
-      statusEl.innerHTML = '<span class="user-status-house">Not logged in</span>';
+      statusEl.innerHTML =
+        '<span class="user-status-house">Guest of the realm</span>';
       return;
     }
 
@@ -206,6 +204,27 @@
       <div class="user-status-name">${escapeHtml(currentUser.username)}</div>
       <div class="user-status-house">${escapeHtml(currentUser.house || "")}</div>
     `;
+  }
+
+  function updateAuthLinks() {
+    const linksEl = $("authLinks");
+    if (!linksEl) return;
+
+    if (!currentUser) {
+      // Guest view
+      linksEl.innerHTML = `
+        <a href="login.html">Sign in</a>
+        <a href="signup.html">Create account</a>
+      `;
+    } else {
+      // Logged-in view
+      linksEl.innerHTML = `
+        <span class="auth-hello">Welcome, ${escapeHtml(
+          currentUser.username
+        )}</span>
+        <button type="button" class="btn btn-sm" onclick="window.logoutAndRedirect()">Log out</button>
+      `;
+    }
   }
 
   async function saveProfileBio(bio) {
@@ -275,6 +294,8 @@
   function renderProfileCard() {
     if (!currentUser) return;
     const container = $("profileInfo");
+    if (!container) return;
+
     const initials = (currentUser.username || "?")
       .split(/\s+/g)
       .map((p) => p[0] || "")
@@ -299,13 +320,13 @@
 
     const statsEl = $("profileStats");
     const achievementsEl = $("profileAchievements");
+    if (!statsEl || !achievementsEl) return;
 
     const userStories = stories.filter(
       (s) => s.author === currentUser.username
     );
 
-    // comments are in DB; for now we won't count them precisely without another query
-    // but we can leave comments count as "N/A" or 0 for v1 DB
+    // Comments count would require extra queries; we keep it 0 for now.
     const userComments = 0;
 
     const totalScore = userStories.reduce(
@@ -458,21 +479,36 @@
     const submitBtn = $("submitStoryBtn");
     const clearParentBtn = $("clearParentBtn");
 
-    submitBtn.addEventListener("click", handleSubmitStory);
-    clearParentBtn.addEventListener("click", () => {
-      currentParentStoryId = null;
-      updateSubmitParentInfo();
-    });
+    if (submitBtn) {
+      submitBtn.addEventListener("click", handleSubmitStory);
+    }
+    if (clearParentBtn) {
+      clearParentBtn.addEventListener("click", () => {
+        currentParentStoryId = null;
+        updateSubmitParentInfo();
+      });
+    }
 
-    $("storiesSearch").addEventListener("input", renderStories);
-    $("storiesRegionFilter").addEventListener("change", renderStories);
-    $("storiesSort").addEventListener("change", renderStories);
+    const searchEl = $("storiesSearch");
+    const filterEl = $("storiesRegionFilter");
+    const sortEl = $("storiesSort");
+
+    if (searchEl) searchEl.addEventListener("input", renderStories);
+    if (filterEl) filterEl.addEventListener("change", renderStories);
+    if (sortEl) sortEl.addEventListener("change", renderStories);
 
     renderStories();
   }
 
+  function requireLoginMessage() {
+    alert("You must be signed in to do that.");
+  }
+
   async function handleSubmitStory() {
-    if (!currentUser) return;
+    if (!currentUser) {
+      requireLoginMessage();
+      return;
+    }
 
     const title = ($("storyTitle").value || "").trim();
     const region = $("storyRegion").value || "";
@@ -533,6 +569,8 @@
     const info = $("submitParentInfo");
     const titleSpan = $("submitParentTitle");
 
+    if (!info || !titleSpan) return;
+
     if (!currentParentStoryId) {
       info.hidden = true;
       titleSpan.textContent = "";
@@ -551,10 +589,11 @@
   function renderStories() {
     const listEl = $("storyList");
     const emptyEl = $("storiesEmpty");
+    if (!listEl || !emptyEl) return;
 
-    const searchTerm = ($("storiesSearch").value || "").toLowerCase();
-    const regionFilter = $("storiesRegionFilter").value || "";
-    const sortBy = $("storiesSort").value || "newest";
+    const searchTerm = ($("storiesSearch")?.value || "").toLowerCase();
+    const regionFilter = $("storiesRegionFilter")?.value || "";
+    const sortBy = $("storiesSort")?.value || "newest";
 
     let filtered = [...stories];
 
@@ -622,9 +661,13 @@
             </div>
             <div class="story-actions">
               <span class="vote-chip">
-                <button type="button" class="js-vote ${userVote === 1 ? "active" : ""}" data-vote="up">+</button>
+                <button type="button" class="js-vote ${
+                  userVote === 1 ? "active" : ""
+                }" data-vote="up">+</button>
                 <span>${score}</span>
-                <button type="button" class="js-vote ${userVote === -1 ? "active" : ""}" data-vote="down">-</button>
+                <button type="button" class="js-vote ${
+                  userVote === -1 ? "active" : ""
+                }" data-vote="down">-</button>
               </span>
               ${
                 branchCount
@@ -647,12 +690,20 @@
       const continueBtn = card.querySelector(".js-continue-story");
       const voteButtons = card.querySelectorAll(".js-vote");
 
-      viewBtn.addEventListener("click", () => openStoryModal(story.id));
-      continueBtn.addEventListener("click", () => {
-        currentParentStoryId = story.id;
-        updateSubmitParentInfo();
-        switchToTab("submit");
-      });
+      if (viewBtn) {
+        viewBtn.addEventListener("click", () => openStoryModal(story.id));
+      }
+      if (continueBtn) {
+        continueBtn.addEventListener("click", () => {
+          if (!currentUser) {
+            requireLoginMessage();
+            return;
+          }
+          currentParentStoryId = story.id;
+          updateSubmitParentInfo();
+          switchToTab("submit");
+        });
+      }
 
       voteButtons.forEach((btn) => {
         btn.addEventListener("click", () => handleVoteClick(story.id, btn));
@@ -661,7 +712,10 @@
   }
 
   async function handleVoteClick(storyId, btn) {
-    if (!currentUser) return;
+    if (!currentUser) {
+      requireLoginMessage();
+      return;
+    }
     const story = getStoryById(storyId);
     if (!story) return;
 
@@ -675,14 +729,12 @@
       newVote = prevVote === -1 ? 0 : -1;
     }
 
-    // Update counts locally
     if (prevVote === 1) story.upvotes -= 1;
     if (prevVote === -1) story.downvotes -= 1;
     if (newVote === 1) story.upvotes += 1;
     if (newVote === -1) story.downvotes += 1;
 
     try {
-      // Upsert vote
       const { error: voteError } = await window.supabaseClient
         .from("votes")
         .upsert({
@@ -697,7 +749,6 @@
         userVotesMap[storyId] = newVote;
       }
 
-      // Update story counts
       const { error: storyError } = await window.supabaseClient
         .from("stories")
         .update({
@@ -737,6 +788,8 @@
     const modal = $("storyModal");
     const closeBtn = $("closeStoryModalBtn");
 
+    if (!modal || !closeBtn) return;
+
     closeBtn.addEventListener("click", () => {
       modal.hidden = true;
       currentStoryForModal = null;
@@ -756,6 +809,8 @@
 
     currentStoryForModal = story;
     const container = $("storyModalContent");
+    const modal = $("storyModal");
+    if (!container || !modal) return;
 
     const commentsRows = await loadCommentsForStory(storyId);
     const comments = commentsRows.map((c) => ({
@@ -824,41 +879,49 @@
       </section>
     `;
 
-    const modal = $("storyModal");
     modal.hidden = false;
 
-    $("modalCommentBtn").addEventListener("click", async () => {
-      if (!currentUser || !currentStoryForModal) return;
-      const text = ($("modalCommentInput").value || "").trim();
-      if (!text) return;
-
-      try {
-        const { error } = await window.supabaseClient
-          .from("comments")
-          .insert({
-            story_id: currentStoryForModal.id,
-            author_profile_id: currentUser.id,
-            author_username: currentUser.username,
-            text,
-          });
-
-        if (error) {
-          console.error("Error adding comment:", error);
+    const commentBtn = $("modalCommentBtn");
+    if (commentBtn) {
+      commentBtn.addEventListener("click", async () => {
+        if (!currentUser || !currentStoryForModal) {
+          requireLoginMessage();
           return;
         }
+        const text = ($("modalCommentInput").value || "").trim();
+        if (!text) return;
 
-        $("modalCommentInput").value = "";
-        await openStoryModal(currentStoryForModal.id); // reload modal
-      } catch (e) {
-        console.error(e);
-      }
-    });
+        try {
+          const { error } = await window.supabaseClient
+            .from("comments")
+            .insert({
+              story_id: currentStoryForModal.id,
+              author_profile_id: currentUser.id,
+              author_username: currentUser.username,
+              text,
+            });
+
+          if (error) {
+            console.error("Error adding comment:", error);
+            return;
+          }
+
+          $("modalCommentInput").value = "";
+          await openStoryModal(currentStoryForModal.id); // reload modal
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    }
   }
 
   // ---- Realm map ----
 
   function renderRealmMap() {
     const grid = $("realmGrid");
+    const filterEl = $("mapFilter");
+    if (!grid || !filterEl) return;
+
     const regionStories = {};
 
     REGIONS.forEach((region) => {
@@ -900,21 +963,22 @@
     Array.from(grid.querySelectorAll(".region-card")).forEach((card) => {
       const region = card.getAttribute("data-region");
       card.addEventListener("click", () => {
-        $("mapFilter").value = region;
+        filterEl.value = region;
         renderRealmStories();
       });
     });
 
-    $("mapFilter").removeEventListener("change", renderRealmStories);
-    $("mapFilter").addEventListener("change", renderRealmStories);
+    filterEl.removeEventListener("change", renderRealmStories);
+    filterEl.addEventListener("change", renderRealmStories);
 
     renderRealmStories();
   }
 
   function renderRealmStories() {
-    const regionFilter = $("mapFilter").value || "";
+    const regionFilter = $("mapFilter")?.value || "";
     const listEl = $("realmStories");
     const emptyEl = $("realmEmpty");
+    if (!listEl || !emptyEl) return;
 
     let filtered = stories;
     if (regionFilter) {
@@ -960,7 +1024,9 @@
       const story = getStoryById(id);
       if (!story) return;
       const viewBtn = card.querySelector(".js-view-story");
-      viewBtn.addEventListener("click", () => openStoryModal(story.id));
+      if (viewBtn) {
+        viewBtn.addEventListener("click", () => openStoryModal(story.id));
+      }
     });
   }
 
@@ -989,12 +1055,18 @@
   }
 
   function initRavensUI() {
-    $("sendRavenBtn").addEventListener("click", sendRaven);
+    const btn = $("sendRavenBtn");
+    if (btn) {
+      btn.addEventListener("click", sendRaven);
+    }
     renderRavens();
   }
 
   async function sendRaven() {
-    if (!currentUser) return;
+    if (!currentUser) {
+      requireLoginMessage();
+      return;
+    }
 
     const recipient = ($("ravenRecipient").value || "").trim();
     const message = ($("ravenMessage").value || "").trim();
@@ -1037,12 +1109,23 @@
   }
 
   function renderRavens() {
-    if (!currentUser) return;
+    if (!currentUser) {
+      const inboxEmptyEl = $("ravenInboxEmpty");
+      const sentEmptyEl = $("ravenSentEmpty");
+      const inboxEl = $("ravenInbox");
+      const sentEl = $("ravenSent");
+      if (inboxEl) inboxEl.innerHTML = "";
+      if (sentEl) sentEl.innerHTML = "";
+      if (inboxEmptyEl) inboxEmptyEl.style.display = "block";
+      if (sentEmptyEl) sentEmptyEl.style.display = "block";
+      return;
+    }
 
     const inboxEl = $("ravenInbox");
     const sentEl = $("ravenSent");
     const inboxEmptyEl = $("ravenInboxEmpty");
     const sentEmptyEl = $("ravenSentEmpty");
+    if (!inboxEl || !sentEl || !inboxEmptyEl || !sentEmptyEl) return;
 
     const inbox = ravens.filter((r) => r.to_username === currentUser.username);
     const sent = ravens.filter((r) => r.from_username === currentUser.username);
@@ -1088,7 +1171,7 @@
     }
   }
 
-  // ---- Post-login initialization ----
+  // ---- Post-login (really “post-init”) ----
 
   async function initPostLogin() {
     await loadStoriesFromSupabase();
@@ -1103,29 +1186,43 @@
     renderRealmMap();
   }
 
-  // ---- Startup (Supabase auth enforced) ----
+  // ---- Startup (no forced redirect) ----
 
   document.addEventListener("DOMContentLoaded", async () => {
     enforceDomain();
 
-    const user = await window.requireAuthOrRedirect();
-    if (!user) return;
+    let profile = null;
 
-    const profile = await window.getCurrentProfile();
-    if (!profile) {
-      console.error("No profile found for authenticated user.");
-      return;
+    try {
+      const {
+        data: { user },
+        error,
+      } = await window.supabaseClient.auth.getUser();
+
+      if (error) {
+        console.warn("Error getting auth user:", error.message);
+      }
+
+      if (user) {
+        profile = await window.getCurrentProfile();
+      }
+    } catch (e) {
+      console.error("Error checking auth state:", e);
     }
 
-    const settings = getUserSettings(profile.username);
+    if (profile) {
+      const settings = getUserSettings(profile.username);
+      currentUser = {
+        ...profile,
+        settings,
+      };
+      applyHouseTheme(currentUser.house);
+    } else {
+      currentUser = null; // guest mode
+    }
 
-    currentUser = {
-      ...profile,
-      settings,
-    };
-
-    applyHouseTheme(currentUser.house);
     renderUserStatus();
+    updateAuthLinks();
 
     await initPostLogin();
   });
