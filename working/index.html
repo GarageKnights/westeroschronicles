@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Westeros Chronicles</title>
+
+  <meta name="description" content="Westeros Chronicles – a collaborative A Song of Ice and Fire fanfiction hub with story threads, profiles, realms, and ravens." />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Snow container (optional effect) -->
+  <div id="snowContainer" aria-hidden="true"></div>
+
+
+  <!-- DOMAIN WARNING -->
+  <div id="domainWarning" class="domain-warning" hidden>
+    You are viewing this outside of <strong>westeroschronicles.com</strong>. Some features are demo-only.
+  </div>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="site-title-block">
+      <h1 class="site-title">Westeros Chronicles</h1>
+      <p class="site-tagline">A shared chronicle of the Seven Kingdoms and beyond.</p>
+    </div>
+
+    <div class="site-header-right">
+      <div class="auth-links" id="authLinks"><!-- filled by JS --></div>
+      <div class="user-status" id="userStatus"><!-- filled by JS --></div>
+    </div>
+  </header>
+
+  <!-- NAV TABS -->
+  <nav class="tab-nav" aria-label="Main sections">
+    <button class="tabBtn active" data-tab="stories" type="button">Stories</button>
+    <button class="tabBtn" data-tab="submit" type="button">Submit Chapter</button>
+    <button class="tabBtn" data-tab="realm" type="button">Realm Map</button>
+    <button class="tabBtn" data-tab="profile" type="button">My Profile</button>
+    <button class="tabBtn" data-tab="ravens" type="button">Ravens</button>
+  </nav>
+
+  <main>
+    <!-- TAB: STORIES -->
+    <section id="stories" class="tab activeTab" aria-label="Stories of the realm">
+      <header class="tab-header">
+        <h2>Stories of Ice and Fire</h2>
+        <div class="tab-actions">
+          <div class="field-group-inline">
+            <label for="storiesSearch" class="field-label sr-only">Search stories</label>
+            <input id="storiesSearch" class="field field-sm" placeholder="Search by title, author, or region..." />
+          </div>
+
+          <div class="field-group-inline">
+            <label for="storiesRegionFilter" class="field-label sr-only">Filter by region</label>
+            <select id="storiesRegionFilter" class="field field-sm">
+              <option value="">All Regions</option>
+              <option>The North</option>
+              <option>The Vale</option>
+              <option>The Riverlands</option>
+              <option>The Westerlands</option>
+              <option>The Reach</option>
+              <option>Dorne</option>
+              <option>The Stormlands</option>
+              <option>The Crownlands</option>
+              <option>Beyond the Wall</option>
+            </select>
+          </div>
+
+          <div class="field-group-inline">
+            <label for="storiesSort" class="field-label sr-only">Sort</label>
+            <select id="storiesSort" class="field field-sm">
+              <option value="newest">Newest first</option>
+              <option value="top">Top rated</option>
+              <option value="branched">Most branched</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <div id="storyList" class="story-list" aria-live="polite"></div>
+
+      <p id="storiesEmpty" class="empty-state">
+        No tales yet. Be the first to write a chapter in the Submit tab.
+      </p>
+    </section>
+
+    <!-- TAB: SUBMIT -->
+    <section id="submit" class="tab" aria-label="Submit a new chapter">
+      <header class="tab-header">
+        <h2>Submit a New Chapter</h2>
+        <p class="muted">Chapters are stored locally in your browser for now (no real server yet).</p>
+      </header>
+
+      <div id="submitParentInfo" class="parent-info" hidden>
+        Continuing thread from:
+        <span id="submitParentTitle"></span>
+        <button type="button" id="clearParentBtn" class="btn-link">Clear</button>
+      </div>
+
+      <label class="field-label" for="storyTitle">Chapter Title</label>
+      <input id="storyTitle" class="field" placeholder="The Wolf and the Lion" />
+
+      <label class="field-label" for="storyRegion">Region</label>
+      <select id="storyRegion" class="field">
+        <option value="">Select a region</option>
+        <option>The North</option>
+        <option>The Vale</option>
+        <option>The Riverlands</option>
+        <option>The Westerlands</option>
+        <option>The Reach</option>
+        <option>Dorne</option>
+        <option>The Stormlands</option>
+        <option>The Crownlands</option>
+        <option>Beyond the Wall</option>
+      </select>
+
+      <label class="field-label" for="storyContent">Your Tale</label>
+      <textarea id="storyContent" class="field" rows="10" placeholder="Write your chapter in the style of Westeros..."></textarea>
+
+      <div class="actions-row">
+        <button id="submitStoryBtn" class="btn btn-primary" type="button">Submit Chapter</button>
+        <p id="submitStatus" class="muted" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- TAB: REALM MAP -->
+    <section id="realm" class="tab" aria-label="Realm map and regions">
+      <header class="tab-header">
+        <h2>The Realm</h2>
+        <p class="muted">Explore chapters by region. This is a simple symbolic map, not a lore-accurate one.</p>
+      </header>
+
+      <div class="realm-controls">
+        <label class="field-label" for="mapFilter">Filter by Region</label>
+        <select id="mapFilter" class="field field-sm">
+          <option value="">All Regions</option>
+          <option>The North</option>
+          <option>The Vale</option>
+          <option>The Riverlands</option>
+          <option>The Westerlands</option>
+          <option>The Reach</option>
+          <option>Dorne</option>
+          <option>The Stormlands</option>
+          <option>The Crownlands</option>
+          <option>Beyond the Wall</option>
+        </select>
+      </div>
+
+      <div id="realmGrid" class="realm-grid" aria-label="Map of regions">
+        <!-- Filled by JS -->
+      </div>
+
+      <h3 class="realm-list-title">Chapters in this region</h3>
+      <div id="realmStories" class="story-list"></div>
+      <p id="realmEmpty" class="empty-state">No stories for this region yet.</p>
+    </section>
+
+    <!-- TAB: PROFILE -->
+    <section id="profile" class="tab" aria-label="Your profile">
+      <header class="tab-header">
+        <h2>My Profile</h2>
+      </header>
+
+      <div id="profileInfo" class="profile-card">
+        <!-- Filled by JS -->
+      </div>
+
+      <section aria-label="Profile settings" class="profile-settings">
+        <h3>Bio</h3>
+        <textarea id="profileBio" class="field" rows="4" placeholder="A short tale of who you are..."></textarea>
+        <button id="saveProfileBtn" class="btn btn-primary" type="button">Save Profile</button>
+        <p id="profileStatus" class="muted" aria-live="polite"></p>
+
+        <h3>Appearance & Effects</h3>
+        <div class="settings-row">
+          <label class="toggle">
+            <input id="toggleSnow" type="checkbox" />
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Enable snowfall</span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <button id="logoutBtn" class="btn btn-danger" type="button">Reset Persona</button>
+        </div>
+      </section>
+
+      <section aria-label="Stats and achievements" class="profile-stats">
+        <h3>Stats</h3>
+        <ul id="profileStats" class="stat-list"></ul>
+
+        <h3>Achievements</h3>
+        <ul id="profileAchievements" class="achievement-list"></ul>
+      </section>
+    </section>
+
+    <!-- TAB: RAVENS -->
+    <section id="ravens" class="tab" aria-label="Ravens messaging">
+      <header class="tab-header">
+        <h2>Ravens</h2>
+        <p class="muted">Send simple messages to other personas by their exact username. Stored locally.</p>
+      </header>
+
+      <section aria-label="Send a raven" class="raven-compose">
+        <label class="field-label" for="ravenRecipient">Send a raven to</label>
+        <input id="ravenRecipient" class="field" placeholder="Exact username (e.g. Arya)" />
+
+        <label class="field-label" for="ravenMessage">Message</label>
+        <textarea id="ravenMessage" class="field" rows="4" placeholder="Your message, sealed with wax..."></textarea>
+
+        <button id="sendRavenBtn" class="btn btn-primary" type="button">Send Raven</button>
+        <p id="ravenStatus" class="muted" aria-live="polite"></p>
+      </section>
+
+      <section aria-label="Raven inbox and sent messages" class="raven-layout">
+        <div class="raven-column">
+          <h3>Inbox</h3>
+          <div id="ravenInbox" class="raven-list"></div>
+          <p id="ravenInboxEmpty" class="empty-state">No ravens yet.</p>
+        </div>
+
+        <div class="raven-column">
+          <h3>Sent</h3>
+          <div id="ravenSent" class="raven-list"></div>
+          <p id="ravenSentEmpty" class="empty-state">You have not sent any ravens yet.</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- STORY DETAIL MODAL -->
+  <div id="storyModal" class="overlay overlay-light" hidden role="dialog" aria-modal="true" aria-labelledby="storyModalTitle">
+    <div class="overlay-content overlay-content-lg">
+      <button id="closeStoryModalBtn" class="overlay-close" type="button" aria-label="Close story">&times;</button>
+      <article id="storyModalContent">
+        <!-- Filled by JS -->
+      </article>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>
+      Fan project inspired by <em>A Song of Ice and Fire</em>. Not affiliated with George R.R. Martin or HBO.
+    </p>
+  </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

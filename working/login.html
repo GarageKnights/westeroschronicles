@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <title>Westeros Chronicles – Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js" defer></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .auth-container {
+      max-width: 420px;
+      width: 100%;
+      background: #2a1f18;
+      border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      padding: 32px;
+      box-shadow: var(--shadow-soft);
+    }
+    .auth-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .auth-title {
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin: 0 0 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .auth-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .auth-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+    .auth-note a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .auth-note a:hover {
+      text-decoration: underline;
+    }
+    .auth-error {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      text-align: center;
+      min-height: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <header class="auth-header">
+      <h1 class="auth-title">Westeros Chronicles</h1>
+      <p class="auth-subtitle">Only the sworn may enter</p>
+    </header>
+
+    <form id="login-form" class="auth-form">
+      <div>
+        <label class="field-label" for="login-username">Username</label>
+        <input type="text" id="login-username" class="field" required />
+      </div>
+
+      <div>
+        <label class="field-label" for="login-password">Password</label>
+        <input type="password" id="login-password" class="field" required />
+      </div>
+
+      <button type="submit" class="btn btn-primary">Enter the Realm</button>
+
+      <p class="auth-note">
+        New to the realm? <a href="signup.html">Swear your name</a>
+      </p>
+
+      <p id="login-error" class="auth-error"></p>
+    </form>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("login-form");
+    const loginError = document.getElementById("login-error");
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginError.textContent = "";
+
+      const username = document.getElementById("login-username").value.trim();
+      const password = document.getElementById("login-password").value;
+
+      if (!username || !password) {
+        loginError.textContent = "Both fields are required.";
+        return;
+      }
+
+      try {
+        // 1. Look up email for this username
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from("profiles")
+          .select("id, email, username")
+          .ilike("username", username)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error(profileError);
+          loginError.textContent = "Error looking up username.";
+          return;
+        }
+
+        if (!profile) {
+          loginError.textContent = "No account found with that username.";
+          return;
+        }
+
+        const email = profile.email;
+
+        // 2. Sign in with email + password (Supabase auth)
+        const { data: signInData, error: signInError } = await window.supabaseClient.auth.signInWithPassword(
+          {
+            email,
+            password,
+          }
+        );
+
+        if (signInError) {
+          console.error(signInError);
+          loginError.textContent = signInError.message || "Login failed.";
+          return;
+        }
+
+        // 3. Redirect to app
+        window.location.href = "index.html";
+      } catch (err) {
+        console.error(err);
+        loginError.textContent = "Unexpected error during login.";
+      }
+    });
+  </script>
+</body>
+</html>
