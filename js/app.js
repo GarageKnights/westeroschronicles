@@ -15,9 +15,13 @@
     "Beyond the Wall",
   ];
 
-  const SETTINGS_PREFIX = "wc_settings_"; // + username
+  const SORT_OPTIONS = [
+    { value: "latest", label: "Latest" },
+    { value: "top", label: "Top Rated" },
+    { value: "oldest", label: "Oldest" },
+  ];
 
-  let currentUser = null; // Supabase profile + local settings
+  let currentUser = null; // Supabase profile + settings from DB
   let stories = [];       // From Supabase
   let ravens = [];        // From Supabase
   let userVotesMap = {};  // story_id -> value
@@ -30,25 +34,6 @@
     return document.getElementById(id);
   }
 
-  function loadJSON(key, fallback) {
-    try {
-      const val = localStorage.getItem(key);
-      if (!val) return fallback;
-      return JSON.parse(val);
-    } catch (e) {
-      console.error("Failed to parse localStorage key", key, e);
-      return fallback;
-    }
-  }
-
-  function saveJSON(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (e) {
-      console.error("Failed to save localStorage key", key, e);
-    }
-  }
-
   function formatDate(dateStr) {
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
@@ -59,14 +44,6 @@
       hour: "2-digit",
       minute: "2-digit",
     });
-  }
-
-  function getUserSettings(username) {
-    return loadJSON(SETTINGS_PREFIX + username, { snow: false });
-  }
-
-  function saveUserSettings(username, settings) {
-    saveJSON(SETTINGS_PREFIX + username, settings);
   }
 
   function getStoryById(id) {
@@ -95,192 +72,403 @@
     return {
       id: row.id,
       title: row.title,
-      region: row.region,
+      region: row.region || "Unknown",
       content: row.content,
-      author: row.author_username,
-      house: row.house,
-      createdAt: row.created_at,
+      authorUsername: row.author_username || "Unknown",
+      authorProfileId: row.author_profile_id || null,
+      parentId: row.parent_id,
       upvotes: row.upvotes || 0,
       downvotes: row.downvotes || 0,
-      parentId: row.parent_story_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
-  // ---- NEW: Toast notifications ----
+  function computeBranchCount(storyId, visited = new Set()) {
+    let count = 0;
+    const children = getChildrenOfStory(storyId);
+    for (const child of children) {
+      if (visited.has(child.id)) continue;
+      visited.add(child.id);
+      count += 1;
+      count += computeBranchCount(child.id, visited);
+    }
+    return count;
+  }
+
+  function countStoriesPerRegion() {
+    const counts = {};
+    for (const r of REGIONS) counts[r] = 0;
+    for (const s of stories) {
+      const region = s.region || "Unknown";
+      if (!counts[region]) counts[region] = 0;
+      counts[region]++;
+    }
+    return counts;
+  }
+
+  function getUserVoteForStory(storyId) {
+    return userVotesMap[storyId] || 0;
+  }
+
+  function setUserVoteForStory(storyId, val) {
+    userVotesMap[storyId] = val;
+  }
+
+  // ---- Toast / Status helpers ----
+
+  function showStatus(message, type = "info") {
+    const statusEl = $("globalStatus");
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.className = `status-message status-${type}`;
+    if (!message) return;
+    setTimeout(() => {
+      if (statusEl.textContent === message) {
+        statusEl.textContent = "";
+        statusEl.className = "status-message";
+      }
+    }, 5000);
+  }
 
   function showError(message) {
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: var(--danger);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-      max-width: 300px;
-      animation: slideIn 0.3s ease;
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.animation = 'slideOut 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
+    console.error(message);
+    showStatus(message, "error");
   }
 
   function showSuccess(message) {
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: var(--accent-soft);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-      max-width: 300px;
-      animation: slideIn 0.3s ease;
-    `;
+    showStatus(message, "success");
+  }
+
+  function showInfo(message) {
+    showStatus(message, "info");
+  }
+
+  // Toast popup
+  function showToast(message, type = "info") {
+    const containerId = "toastContainer";
+    let container = document.getElementById(containerId);
+    if (!container) {
+      container = document.createElement("div");
+      container.id = containerId;
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
     toast.textContent = message;
-    document.body.appendChild(toast);
-    
+
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.style.opacity = "1";
+      toast.style.transform = "translateX(0)";
+    });
+
     setTimeout(() => {
-      toast.style.animation = 'slideOut 0.3s ease';
+      toast.style.opacity = "0";
+      toast.style.transform = "translateX(100%)";
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
 
-  // ---- NEW: Better login check ----
-
-  function requireLogin() {
-    if (!currentUser) {
-      showError("You must be signed in to do that. Please log in or create an account.");
-      return false;
-    }
-    return true;
-  }
-
-  // ---- Domain enforcement ----
-
-  function enforceDomain() {
-    const warningEl = $("domainWarning");
-    const hostname = window.location.hostname;
-
-    const isFile = hostname === "";
-    const isLocal =
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname.endsWith(".local");
-
-    const allowedHost = "westeroschronicles.com";
-
-    if (!isFile && !isLocal && hostname !== allowedHost) {
-      warningEl.hidden = false;
-    } else {
-      warningEl.hidden = true;
-    }
-  }
-
-  // ---- Snow effect ----
-
-  let snowEnabled = false;
-  let snowInitialized = false;
+  // ---- Snow effect helpers ----
 
   function enableSnow() {
-    if (snowInitialized) {
-      snowEnabled = true;
-      return;
-    }
-    snowInitialized = true;
-    snowEnabled = true;
+    let snowContainer = document.querySelector(".snow-container");
+    if (!snowContainer) {
+      snowContainer = document.createElement("div");
+      snowContainer.className = "snow-container";
+      document.body.appendChild(snowContainer);
 
-    const container = $("snowContainer");
-    const flakes = 60;
-
-    for (let i = 0; i < flakes; i++) {
-      const span = document.createElement("span");
-      span.className = "snowflake";
-      span.textContent = "❄";
-      span.style.left = Math.random() * 100 + "vw";
-      span.style.animationDuration = 8 + Math.random() * 10 + "s";
-      span.style.animationDelay = Math.random() * 10 + "s";
-      span.style.setProperty(
-        "--drift",
-        (Math.random() * 60 - 30).toFixed(0) + "px"
-      );
-      container.appendChild(span);
+      for (let i = 0; i < 80; i++) {
+        const flake = document.createElement("div");
+        flake.className = "snowflake";
+        flake.textContent = "❄";
+        flake.style.left = Math.random() * 100 + "%";
+        flake.style.animationDelay = Math.random() * 10 + "s";
+        flake.style.fontSize = 10 + Math.random() * 14 + "px";
+        snowContainer.appendChild(flake);
+      }
     }
+    snowContainer.classList.add("snow-enabled");
   }
 
   function disableSnow() {
-    snowEnabled = false;
-    const container = $("snowContainer");
-    container.innerHTML = "";
-    snowInitialized = false;
-  }
-
-  // ---- Login / Profile (Supabase) ----
-
-  function applyHouseTheme(house) {
-    const body = document.body;
-    body.className = body.className
-      .split(" ")
-      .filter((c) => !c.startsWith("house-"))
-      .join(" ");
-
-    if (house) {
-      const normalized = house.replace(/\s+/g, "-");
-      body.classList.add(`house-${normalized}`);
+    const snowContainer = document.querySelector(".snow-container");
+    if (snowContainer) {
+      snowContainer.classList.remove("snow-enabled");
     }
   }
 
-  function escapeHtml(str) {
-    if (typeof str !== "string") return "";
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+  // ---- Supabase Data ----
+
+  async function loadStoriesFromSupabase() {
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("stories")
+        .select(
+          `
+          id,
+          title,
+          region,
+          content,
+          author_username,
+          author_profile_id,
+          parent_id,
+          upvotes,
+          downvotes,
+          created_at,
+          updated_at
+        `
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching stories:", error);
+        showError("Error loading stories from the server.");
+        return;
+      }
+
+      stories = (data || []).map(mapStoryRow);
+      renderStoriesList();
+      renderRealmMap();
+    } catch (e) {
+      console.error("Unexpected error loading stories:", e);
+      showError("Unexpected error loading stories.");
+    }
   }
 
-  function renderUserStatus() {
-    const statusEl = $("userStatus");
-    if (!statusEl) return;
-
+  async function loadUserVotesFromSupabase() {
     if (!currentUser) {
-      statusEl.innerHTML =
-        '<span class="user-status-house">Guest of the realm</span>';
+      userVotesMap = {};
+      return;
+    }
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("votes")
+        .select("story_id, value")
+        .eq("profile_id", currentUser.id);
+
+      if (error) {
+        console.error("Error fetching user votes:", error);
+        return;
+      }
+
+      userVotesMap = {};
+      for (const row of data || []) {
+        userVotesMap[row.story_id] = row.value;
+      }
+      renderStoriesList();
+      if (currentStoryForModal) {
+        openStoryModal(currentStoryForModal.id);
+      }
+    } catch (e) {
+      console.error("Unexpected error loading votes:", e);
+    }
+  }
+
+  async function loadRavensFromSupabase() {
+    if (!currentUser) {
+      ravens = [];
+      renderRavensUI();
       return;
     }
 
-    statusEl.innerHTML = `
-      <div class="user-status-name">${escapeHtml(currentUser.username)}</div>
-      <div class="user-status-house">${escapeHtml(currentUser.house || "")}</div>
-    `;
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("ravens")
+        .select(
+          `
+        id,
+        sender_id,
+        sender_username,
+        recipient_username,
+        recipient_id,
+        message,
+        created_at
+      `
+        )
+        .or(
+          `sender_id.eq.${currentUser.id},recipient_username.eq.${currentUser.username}`
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching ravens:", error);
+        showError("Error loading ravens from the server.");
+        return;
+      }
+
+      ravens = data || [];
+      renderRavensUI();
+    } catch (e) {
+      console.error("Unexpected error loading ravens:", e);
+      showError("Unexpected error loading ravens.");
+    }
   }
 
-  function updateAuthLinks() {
-    const linksEl = $("authLinks");
-    if (!linksEl) return;
-
+  async function submitStoryToSupabase({ title, region, content, parentId }) {
     if (!currentUser) {
-      linksEl.innerHTML = `
-        <a href="login.html">Sign in</a>
-        <a href="signup.html">Create account</a>
-      `;
-    } else {
-      linksEl.innerHTML = `
-        <span class="auth-hello" style="color: var(--text-muted); font-size: 0.85rem;">Welcome, ${escapeHtml(
-          currentUser.username
-        )}</span>
-      `;
+      showError("You must be logged in to submit a story.");
+      return;
+    }
+    try {
+      const { error } = await window.supabaseClient
+        .from("stories")
+        .insert({
+          title,
+          region,
+          content,
+          author_username: currentUser.username,
+          author_profile_id: currentUser.id,
+          parent_id: parentId || null,
+        });
+
+      if (error) {
+        console.error("Error inserting story:", error);
+        showError("Error submitting story. Please try again.");
+        return;
+      }
+
+      showSuccess("Story submitted to the realm!");
+      await loadStoriesFromSupabase();
+      await loadUserVotesFromSupabase();
+    } catch (e) {
+      console.error("Unexpected error submitting story:", e);
+      showError("Unexpected error submitting story.");
+    }
+  }
+
+  async function saveVoteToSupabase(storyId, value) {
+    if (!currentUser) {
+      showError("You must be logged in to vote.");
+      return;
+    }
+
+    try {
+      const { data, error: fetchErr } = await window.supabaseClient
+        .from("votes")
+        .select("id, value")
+        .eq("profile_id", currentUser.id)
+        .eq("story_id", storyId)
+        .maybeSingle();
+
+      if (fetchErr && fetchErr.code !== "PGRST116") {
+        console.error("Error fetching existing vote:", fetchErr);
+        showError("Error updating your vote.");
+        return;
+      }
+
+      if (!data) {
+        if (value === 0) return;
+        const { error: insertErr } = await window.supabaseClient
+          .from("votes")
+          .insert({
+            profile_id: currentUser.id,
+            story_id: storyId,
+            value,
+          });
+        if (insertErr) {
+          console.error("Error inserting vote:", insertErr);
+          showError("Error casting your vote.");
+          return;
+        }
+      } else {
+        if (value === 0) {
+          const { error: deleteErr } = await window.supabaseClient
+            .from("votes")
+            .delete()
+            .eq("id", data.id);
+          if (deleteErr) {
+            console.error("Error deleting vote:", deleteErr);
+            showError("Error removing your vote.");
+            return;
+          }
+        } else if (data.value !== value) {
+          const { error: updateErr } = await window.supabaseClient
+            .from("votes")
+            .update({ value })
+            .eq("id", data.id);
+          if (updateErr) {
+            console.error("Error updating vote:", updateErr);
+            showError("Error updating your vote.");
+            return;
+          }
+        } else {
+          return;
+        }
+      }
+
+      const { data: storyData, error: storyErr } = await window.supabaseClient
+        .rpc("recalculate_story_votes", { storyid: storyId })
+        .single()
+        .catch(() => ({ data: null, error: null }));
+
+      if (storyErr) {
+        console.warn("Error recalculating story votes:", storyErr);
+      }
+
+      if (storyData) {
+        const idx = stories.findIndex((s) => s.id === storyId);
+        if (idx >= 0) {
+          stories[idx] = mapStoryRow(storyData);
+        }
+      }
+
+      setUserVoteForStory(storyId, value);
+      renderStoriesList();
+      if (currentStoryForModal) {
+        openStoryModal(currentStoryForModal.id);
+      }
+    } catch (e) {
+      console.error("Unexpected error saving vote:", e);
+      showError("Unexpected error while voting.");
+    }
+  }
+
+  async function sendRavenToSupabase({ recipientUsername, message }) {
+    if (!currentUser) {
+      showError("You must be logged in to send a raven.");
+      return;
+    }
+
+    try {
+      const { data: recipientProfile, error: profileErr } =
+        await window.supabaseClient
+          .from("profiles")
+          .select("id, username")
+          .ilike("username", recipientUsername)
+          .maybeSingle();
+
+      if (profileErr && profileErr.code !== "PGRST116") {
+        console.error("Error looking up recipient:", profileErr);
+        showError("Error finding that username.");
+        return;
+      }
+
+      const { error: insertErr } = await window.supabaseClient
+        .from("ravens")
+        .insert({
+          sender_id: currentUser.id,
+          sender_username: currentUser.username,
+          recipient_username: recipientUsername,
+          recipient_id: recipientProfile ? recipientProfile.id : null,
+          message,
+        });
+
+      if (insertErr) {
+        console.error("Error sending raven:", insertErr);
+        showError("Error sending raven. Please try again.");
+        return;
+      }
+
+      showSuccess("Your raven takes wing.");
+      await loadRavensFromSupabase();
+    } catch (e) {
+      console.error("Unexpected error sending raven:", e);
+      showError("Unexpected error while sending raven.");
     }
   }
 
@@ -291,6 +479,18 @@
       .update({ bio })
       .eq("id", currentUser.id);
     if (error) throw error;
+  }
+
+  async function saveProfileSnow(isOn) {
+    if (!currentUser) return;
+    const { error } = await window.supabaseClient
+      .from("profiles")
+      .update({ snow_enabled: isOn })
+      .eq("id", currentUser.id);
+    if (error) {
+      console.error("Error saving snow setting:", error);
+      showError("Error saving appearance setting.");
+    }
   }
 
   function initProfileUI() {
@@ -309,6 +509,8 @@
       enableSnow();
     }
 
+    if (!saveBtn) return;
+
     saveBtn.addEventListener("click", async () => {
       if (!requireLogin()) return;
       const bio = bioField.value || "";
@@ -324,20 +526,28 @@
       }
     });
 
-    toggleSnowEl.addEventListener("change", () => {
+    toggleSnowEl.addEventListener("change", async () => {
       if (!currentUser) return;
       const isOn = toggleSnowEl.checked;
+
       if (!currentUser.settings) currentUser.settings = {};
       currentUser.settings.snow = isOn;
-      saveUserSettings(currentUser.username, currentUser.settings);
-      if (isOn) enableSnow();
-      else disableSnow();
+      currentUser.snow_enabled = isOn;
+
+      if (isOn) {
+        enableSnow();
+      } else {
+        disableSnow();
+      }
+
+      try {
+        await saveProfileSnow(isOn);
+      } catch (e) {
+        console.error(e);
+      }
     });
 
     logoutBtn.addEventListener("click", async () => {
-      if (currentUser && currentUser.username) {
-        localStorage.removeItem(SETTINGS_PREFIX + currentUser.username);
-      }
       await window.logoutAndRedirect();
     });
 
@@ -347,888 +557,827 @@
 
   function renderProfileCard() {
     if (!currentUser) return;
-    const container = $("profileInfo");
-    if (!container) return;
+    const cardEl = $("profileCard");
+    if (!cardEl) return;
 
-    const initials = (currentUser.username || "?")
-      .split(/\s+/g)
-      .map((p) => p[0] || "")
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+    const letter = (currentUser.username || "?").charAt(0).toUpperCase();
+    const house = currentUser.house || "Wanderer";
+    const bio = currentUser.bio || "No words written yet.";
 
-    container.innerHTML = `
-      <div class="profile-avatar" aria-hidden="true">
-        ${escapeHtml(initials)}
+    cardEl.innerHTML = `
+      <div class="profile-avatar house-${house.toLowerCase()}">
+        <span>${letter}</span>
       </div>
-      <div class="profile-main">
-        <p class="profile-name">${escapeHtml(currentUser.username)}</p>
-        <p class="profile-house">${escapeHtml(currentUser.house || "")}</p>
-        <p class="muted">${escapeHtml(currentUser.bio || "No bio yet.")}</p>
+      <div class="profile-meta">
+        <h3>${currentUser.username}</h3>
+        <p class="profile-house">House: ${house}</p>
+        <p class="profile-bio">${bio}</p>
       </div>
     `;
   }
 
   function renderProfileStatsAndAchievements() {
     if (!currentUser) return;
-
     const statsEl = $("profileStats");
-    const achievementsEl = $("profileAchievements");
-    if (!statsEl || !achievementsEl) return;
+    const achEl = $("profileAchievements");
+    if (!statsEl || !achEl) return;
 
-    const userStories = stories.filter(
-      (s) => s.author === currentUser.username
+    const authoredStories = stories.filter(
+      (s) => s.authorUsername === currentUser.username
     );
-
-    const userComments = 0;
-
-    const totalScore = userStories.reduce(
-      (sum, s) => sum + getStoryScore(s),
+    const storyCount = authoredStories.length;
+    const totalUpvotes = authoredStories.reduce(
+      (sum, s) => sum + (s.upvotes || 0),
       0
     );
+    const totalDownvotes = authoredStories.reduce(
+      (sum, s) => sum + (s.downvotes || 0),
+      0
+    );
+    const bestStory = authoredStories.reduce((best, s) => {
+      const score = getStoryScore(s);
+      if (!best) return s;
+      if (score > getStoryScore(best)) return s;
+      return best;
+    }, null);
 
     statsEl.innerHTML = `
-      <li>Chapters written: <strong>${userStories.length}</strong></li>
-      <li>Comments made: <strong>${userComments}</strong></li>
-      <li>Total chapter score: <strong>${totalScore}</strong></li>
+      <div class="stat-block">
+        <span class="stat-label">Stories Penned</span>
+        <span class="stat-value">${storyCount}</span>
+      </div>
+      <div class="stat-block">
+        <span class="stat-label">Total Ravens of Praise</span>
+        <span class="stat-value">${totalUpvotes}</span>
+      </div>
+      <div class="stat-block">
+        <span class="stat-label">Total Ravens of Scorn</span>
+        <span class="stat-value">${totalDownvotes}</span>
+      </div>
+      ${
+        bestStory
+          ? `
+      <div class="stat-block">
+        <span class="stat-label">Most Honored Tale</span>
+        <span class="stat-value">"${bestStory.title}" (${getStoryScore(
+              bestStory
+            )} score)</span>
+      </div>
+      `
+          : ""
+      }
     `;
 
     const achievements = [];
 
-    if (userStories.length >= 1) {
+    if (storyCount >= 1) {
       achievements.push({
-        id: "first-quill",
-        name: "First Quill",
-        desc: "Submitted your first chapter.",
+        title: "First Quill",
+        description: "Penned your first tale in the chronicles.",
       });
     }
-    if (userStories.length >= 5) {
+    if (storyCount >= 5) {
       achievements.push({
-        id: "seasoned-bard",
-        name: "Seasoned Bard",
-        desc: "Submitted five or more chapters.",
+        title: "Prolific Scribe",
+        description: "Wrote five or more stories.",
       });
     }
-    if (totalScore >= 10) {
+    if (totalUpvotes >= 10) {
       achievements.push({
-        id: "crowd-favorite",
-        name: "Crowd Favorite",
-        desc: "Earned a total score of 10 or more on your chapters.",
+        title: "Whispers on the Wind",
+        description: "Earned at least 10 upvotes across your stories.",
       });
     }
-    if (
-      userStories.some((s) => s.region === "The North") &&
-      currentUser.house === "Stark"
-    ) {
+    if (totalUpvotes >= 50) {
       achievements.push({
-        id: "wolf-of-the-north",
-        name: "Wolf of the North",
-        desc: "A Stark writing tales of the North.",
+        title: "Beloved Bard",
+        description: "Earned at least 50 upvotes across your stories.",
       });
     }
-    if (
-      userStories.some((s) => s.region === "Beyond the Wall") &&
-      currentUser.house === "Night's Watch"
-    ) {
+
+    const northernStories = authoredStories.filter(
+      (s) => s.region === "The North"
+    ).length;
+    const dorneStories = authoredStories.filter(
+      (s) => s.region === "Dorne"
+    ).length;
+    const beyondWallStories = authoredStories.filter(
+      (s) => s.region === "Beyond the Wall"
+    ).length;
+
+    if (northernStories >= 1) {
       achievements.push({
-        id: "oath-kept",
-        name: "Oath Kept",
-        desc: "A brother of the Watch telling tales beyond the Wall.",
+        title: "Snowbound",
+        description: "You’ve written of the frozen North.",
+      });
+    }
+    if (dorneStories >= 1) {
+      achievements.push({
+        title: "Sun and Spear",
+        description: "You’ve written of distant Dorne.",
+      });
+    }
+    if (beyondWallStories >= 1) {
+      achievements.push({
+        title: "Whispers Beyond",
+        description: "You’ve written of lands beyond the Wall.",
       });
     }
 
-    if (!achievements.length) {
-      achievementsEl.innerHTML =
-        '<li class="achievement-item">No achievements yet. Begin your tale.</li>';
-      return;
-    }
-
-    achievementsEl.innerHTML = achievements
-      .map(
-        (a) =>
-          `<li class="achievement-item"><span>${escapeHtml(
-            a.name
-          )}</span> – ${escapeHtml(a.desc)}</li>`
-      )
-      .join("");
-  }
-
-  // ---- Tabs ----
-
-  function initTabs() {
-    const buttons = Array.from(document.querySelectorAll(".tabBtn"));
-    buttons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const tabId = btn.dataset.tab;
-        if (!tabId) return;
-
-        buttons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        document
-          .querySelectorAll(".tab")
-          .forEach((sec) => sec.classList.remove("activeTab"));
-
-        const target = $(tabId);
-        if (target) {
-          target.classList.add("activeTab");
-        }
-
-        if (tabId === "profile") {
-          renderProfileCard();
-          renderProfileStatsAndAchievements();
-        } else if (tabId === "realm") {
-          renderRealmMap();
-        } else if (tabId === "stories") {
-          renderStories();
-        } else if (tabId === "ravens") {
-          renderRavens();
-        }
-      });
-    });
-  }
-
-  function switchToTab(tabId) {
-    const btn = document.querySelector(`.tabBtn[data-tab="${tabId}"]`);
-    if (btn) btn.click();
-  }
-
-  // ---- Stories (Supabase) - WITH LOADING STATES ----
-
-  async function loadStoriesFromSupabase() {
-    const listEl = $("storyList");
-    const emptyEl = $("storiesEmpty");
-    
-    // Show loading
-    if (listEl) {
-      listEl.innerHTML = '<p class="muted" style="padding: 20px;">Loading stories from the realm...</p>';
-    }
-    if (emptyEl) {
-      emptyEl.style.display = "none";
-    }
-
-    const { data, error } = await window.supabaseClient
-      .from("stories")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading stories:", error);
-      if (listEl) {
-        listEl.innerHTML = '<p class="error-text" style="padding: 20px;">Failed to load stories. Please refresh the page.</p>';
-      }
-      stories = [];
-      return;
-    }
-    
-    stories = (data || []).map(mapStoryRow);
-    renderStories();
-  }
-
-  async function loadUserVotesFromSupabase() {
-    userVotesMap = {};
-    if (!currentUser) return;
-
-    const { data, error } = await window.supabaseClient
-      .from("votes")
-      .select("*")
-      .eq("voter_profile_id", currentUser.id);
-
-    if (error) {
-      console.error("Error loading votes:", error);
-      return;
-    }
-
-    (data || []).forEach((row) => {
-      userVotesMap[row.story_id] = row.value;
-    });
-  }
-
-  function initStoriesUI() {
-    const submitBtn = $("submitStoryBtn");
-    const clearParentBtn = $("clearParentBtn");
-
-    if (submitBtn) {
-      submitBtn.addEventListener("click", handleSubmitStory);
-    }
-    if (clearParentBtn) {
-      clearParentBtn.addEventListener("click", () => {
-        currentParentStoryId = null;
-        updateSubmitParentInfo();
-      });
-    }
-
-    const searchEl = $("storiesSearch");
-    const filterEl = $("storiesRegionFilter");
-    const sortEl = $("storiesSort");
-
-    if (searchEl) searchEl.addEventListener("input", renderStories);
-    if (filterEl) filterEl.addEventListener("change", renderStories);
-    if (sortEl) sortEl.addEventListener("change", renderStories);
-
-    renderStories();
-  }
-
-  async function handleSubmitStory() {
-    if (!requireLogin()) return;
-
-    const title = ($("storyTitle").value || "").trim();
-    const region = $("storyRegion").value || "";
-    const content = ($("storyContent").value || "").trim();
-
-    if (!title || !content) {
-      showError("Title and content are required.");
-      return;
-    }
-
-    try {
-      const { data, error } = await window.supabaseClient
-        .from("stories")
-        .insert({
-          title,
-          region,
-          content,
-          author_profile_id: currentUser.id,
-          author_username: currentUser.username,
-          house: currentUser.house || null,
-          parent_story_id: currentParentStoryId || null,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error inserting story:", error);
-        showError("Error saving chapter.");
-        return;
-      }
-
-      const newStory = mapStoryRow(data);
-      stories.unshift(newStory);
-
-      $("storyTitle").value = "";
-      $("storyRegion").value = "";
-      $("storyContent").value = "";
-      currentParentStoryId = null;
-      updateSubmitParentInfo();
-
-      showSuccess("Chapter saved to the realm!");
-
-      renderStories();
-      renderRealmMap();
-      renderProfileStatsAndAchievements();
-      switchToTab("stories");
-    } catch (e) {
-      console.error(e);
-      showError("Error saving chapter. Please try again.");
+    if (achievements.length === 0) {
+      achEl.innerHTML = `<p class="muted">No achievements yet. The quill awaits.</p>`;
+    } else {
+      achEl.innerHTML = achievements
+        .map(
+          (a) => `
+        <div class="achievement">
+          <h4>${a.title}</h4>
+          <p>${a.description}</p>
+        </div>
+      `
+        )
+        .join("");
     }
   }
 
-  function updateSubmitParentInfo() {
-    const info = $("submitParentInfo");
-    const titleSpan = $("submitParentTitle");
+  // ---- Stories UI ----
 
-    if (!info || !titleSpan) return;
+  function renderStoriesList() {
+    const listEl = $("storiesList");
+    if (!listEl) return;
 
-    if (!currentParentStoryId) {
-      info.hidden = true;
-      titleSpan.textContent = "";
-      return;
-    }
-    const story = getStoryById(currentParentStoryId);
-    if (!story) {
-      info.hidden = true;
-      return;
-    }
-
-    info.hidden = false;
-    titleSpan.textContent = story.title;
-  }
-
-  function renderStories() {
-    const listEl = $("storyList");
-    const emptyEl = $("storiesEmpty");
-    if (!listEl || !emptyEl) return;
-
-    const searchTerm = ($("storiesSearch")?.value || "").toLowerCase();
-    const regionFilter = $("storiesRegionFilter")?.value || "";
-    const sortBy = $("storiesSort")?.value || "newest";
+    const searchTerm = ($("storySearchInput")?.value || "").trim().toLowerCase();
+    const regionFilter = $("regionFilter")?.value || "all";
+    const sortValue = $("storySort")?.value || "latest";
 
     let filtered = [...stories];
 
     if (searchTerm) {
       filtered = filtered.filter((s) => {
         return (
-          (s.title && s.title.toLowerCase().includes(searchTerm)) ||
-          (s.author && s.author.toLowerCase().includes(searchTerm)) ||
-          (s.region && s.region.toLowerCase().includes(searchTerm)) ||
-          (s.content && s.content.toLowerCase().includes(searchTerm))
+          s.title.toLowerCase().includes(searchTerm) ||
+          s.content.toLowerCase().includes(searchTerm) ||
+          s.authorUsername.toLowerCase().includes(searchTerm)
         );
       });
     }
 
-    if (regionFilter) {
+    if (regionFilter !== "all") {
       filtered = filtered.filter((s) => s.region === regionFilter);
     }
 
-    if (sortBy === "newest") {
-      filtered.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-    } else if (sortBy === "top") {
-      filtered.sort((a, b) => getStoryScore(b) - getStoryScore(a));
-    } else if (sortBy === "branched") {
-      filtered.sort(
-        (a, b) =>
-          getChildrenOfStory(b.id).length - getChildrenOfStory(a.id).length
-      );
-    }
+    filtered.sort((a, b) => {
+      if (sortValue === "latest") {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } else if (sortValue === "oldest") {
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      } else if (sortValue === "top") {
+        return getStoryScore(b) - getStoryScore(a);
+      }
+      return 0;
+    });
 
-    if (!filtered.length) {
-      listEl.innerHTML = "";
-      emptyEl.style.display = "block";
+    listEl.innerHTML = "";
+
+    if (filtered.length === 0) {
+      listEl.innerHTML =
+        `<p class="muted">No stories match those criteria yet.</p>`;
       return;
     }
 
-    emptyEl.style.display = "none";
+    for (const story of filtered) {
+      const score = getStoryScore(story);
+      const userVote = getUserVoteForStory(story.id);
+      const root = getRootOfStory(story);
+      const branchCount = computeBranchCount(story.id);
 
-    listEl.innerHTML = filtered
-      .map((s) => {
-        const excerpt =
-          s.content.length > 240
-            ? s.content.slice(0, 240) + "…"
-            : s.content;
+      const card = document.createElement("article");
+      card.className = "story-card";
+      card.dataset.storyId = story.id;
 
-        const score = getStoryScore(s);
-        const branchCount = getChildrenOfStory(s.id).length;
-        const userVote = userVotesMap[s.id] || 0;
+      const voteUpClass = userVote === 1 ? "voted" : "";
+      const voteDownClass = userVote === -1 ? "voted" : "";
 
-        return `
-        <article class="story-card" data-id="${s.id}">
-          <h3>${escapeHtml(s.title)}</h3>
+      card.innerHTML = `
+        <header class="story-header">
+          <div class="story-title-row">
+            <h3 class="story-title">${story.title}</h3>
+            <span class="story-region-tag">${story.region}</span>
+          </div>
           <div class="story-meta">
-            by <strong>${escapeHtml(s.author)}</strong>
-            ${s.house ? ` of <em>${escapeHtml(s.house)}</em>` : ""}
-            ${s.region ? ` • ${escapeHtml(s.region)}` : ""}
-            ${s.createdAt ? ` • ${escapeHtml(formatDate(s.createdAt))}` : ""}
+            <span class="story-author">@${story.authorUsername}</span>
+            ${
+              root && root.id !== story.id
+                ? `<span class="story-thread-info">Branch of: "${root.title}"</span>`
+                : ""
+            }
+            ${
+              branchCount > 0
+                ? `<span class="story-branch-count">${branchCount} ${
+                    branchCount === 1 ? "reply" : "replies"
+                  }</span>`
+                : ""
+            }
+            <span class="story-date">${formatDate(story.createdAt)}</span>
           </div>
-          <p class="story-excerpt">${escapeHtml(excerpt)}</p>
-          <div class="story-footer">
-            <div class="story-actions">
-              <button type="button" class="btn btn-primary btn-sm js-view-story">Read</button>
-              <button type="button" class="btn btn-sm js-continue-story">Continue story</button>
-            </div>
-            <div class="story-actions">
-              <span class="vote-chip">
-                <button type="button" class="js-vote ${
-                  userVote === 1 ? "active" : ""
-                }" data-vote="up">+</button>
-                <span>${score}</span>
-                <button type="button" class="js-vote ${
-                  userVote === -1 ? "active" : ""
-                }" data-vote="down">-</button>
-              </span>
-              ${
-                branchCount
-                  ? `<span class="thread-chip">${branchCount} branched continuations</span>`
-                  : ""
-              }
-            </div>
+        </header>
+        <div class="story-excerpt">
+          ${escapeHtml(story.content.slice(0, 220))}${
+        story.content.length > 220 ? "…" : ""
+      }
+        </div>
+        <footer class="story-footer">
+          <div class="story-votes">
+            <button class="vote-btn vote-up ${voteUpClass}" data-vote="up" aria-label="Upvote this story">
+              ▲
+            </button>
+            <span class="story-score">${score}</span>
+            <button class="vote-btn vote-down ${voteDownClass}" data-vote="down" aria-label="Downvote this story">
+              ▼
+            </button>
           </div>
-        </article>
+          <button class="btn-link view-story-btn">Read full tale</button>
+          <button class="btn-link reply-story-btn">Branch a new tale</button>
+        </footer>
       `;
-      })
-      .join("");
 
-    Array.from(listEl.querySelectorAll(".story-card")).forEach((card) => {
-      const id = card.getAttribute("data-id");
-      const story = getStoryById(id);
-      if (!story) return;
+      const viewBtn = card.querySelector(".view-story-btn");
+      const replyBtn = card.querySelector(".reply-story-btn");
+      const voteButtons = card.querySelectorAll(".vote-btn");
 
-      const viewBtn = card.querySelector(".js-view-story");
-      const continueBtn = card.querySelector(".js-continue-story");
-      const voteButtons = card.querySelectorAll(".js-vote");
+      viewBtn.addEventListener("click", () => {
+        openStoryModal(story.id);
+      });
 
-      if (viewBtn) {
-        viewBtn.addEventListener("click", () => openStoryModal(story.id));
-      }
-      if (continueBtn) {
-        continueBtn.addEventListener("click", () => {
-          if (!requireLogin()) return;
-          currentParentStoryId = story.id;
-          updateSubmitParentInfo();
-          switchToTab("submit");
-        });
-      }
+      replyBtn.addEventListener("click", () => {
+        setParentStoryForSubmit(story.id);
+      });
 
       voteButtons.forEach((btn) => {
-        btn.addEventListener("click", () => handleVoteClick(story.id, btn));
+        btn.addEventListener("click", () => {
+          const voteType = btn.dataset.vote;
+          handleVoteClick(story.id, voteType);
+        });
       });
-    });
+
+      listEl.appendChild(card);
+    }
   }
 
-  async function handleVoteClick(storyId, btn) {
-    if (!requireLogin()) return;
-    
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function setParentStoryForSubmit(storyId) {
     const story = getStoryById(storyId);
-    if (!story) return;
-
-    const voteType = btn.getAttribute("data-vote");
-    const prevVote = userVotesMap[storyId] || 0;
-    let newVote = prevVote;
-
-    if (voteType === "up") {
-      newVote = prevVote === 1 ? 0 : 1;
-    } else if (voteType === "down") {
-      newVote = prevVote === -1 ? 0 : -1;
+    currentParentStoryId = story ? story.id : null;
+    const parentLabel = $("parentStoryLabel");
+    if (!parentLabel) return;
+    if (!story) {
+      parentLabel.textContent = "Starting a new, original tale.";
+      parentLabel.classList.remove("has-parent");
+    } else {
+      parentLabel.textContent = `Branching from: "${story.title}" by @${story.authorUsername}`;
+      parentLabel.classList.add("has-parent");
+      const submitTabButton = document.querySelector(
+        '[data-tab-target="submitTab"]'
+      );
+      if (submitTabButton) {
+        submitTabButton.click();
+      }
+      const storyTitleInput = $("storyTitle");
+      if (storyTitleInput && !storyTitleInput.value) {
+        storyTitleInput.focus();
+      }
     }
+  }
 
-    if (prevVote === 1) story.upvotes -= 1;
-    if (prevVote === -1) story.downvotes -= 1;
-    if (newVote === 1) story.upvotes += 1;
-    if (newVote === -1) story.downvotes += 1;
+  function handleVoteClick(storyId, voteType) {
+    if (!requireLogin()) return;
 
-    try {
-      const { error: voteError } = await window.supabaseClient
-        .from("votes")
-        .upsert({
-          story_id: storyId,
-          voter_profile_id: currentUser.id,
-          value: newVote,
-        });
+    const currentVote = getUserVoteForStory(storyId);
+    let newVote = 0;
+    if (voteType === "up") {
+      newVote = currentVote === 1 ? 0 : 1;
+    } else if (voteType === "down") {
+      newVote = currentVote === -1 ? 0 : -1;
+    }
+    saveVoteToSupabase(storyId, newVote);
+  }
 
-      if (voteError) {
-        console.error("Error saving vote:", voteError);
-        showError("Error saving vote.");
+  function initStoriesUI() {
+    const storySearchInput = $("storySearchInput");
+    const regionFilter = $("regionFilter");
+    const storySort = $("storySort");
+    const storyForm = $("storyForm");
+
+    if (!storySearchInput || !regionFilter || !storySort || !storyForm) return;
+
+    regionFilter.innerHTML =
+      `<option value="all">All Regions</option>` +
+      REGIONS.map((r) => `<option value="${r}">${r}</option>`).join("");
+
+    storySort.innerHTML = SORT_OPTIONS.map(
+      (opt) =>
+        `<option value="${opt.value}" ${
+          opt.value === "latest" ? "selected" : ""
+        }>${opt.label}</option>`
+    ).join("");
+
+    storySearchInput.addEventListener("input", () => {
+      renderStoriesList();
+    });
+
+    regionFilter.addEventListener("change", () => {
+      renderStoriesList();
+    });
+
+    storySort.addEventListener("change", () => {
+      renderStoriesList();
+    });
+
+    storyForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!requireLogin()) return;
+
+      const titleEl = $("storyTitle");
+      const regionEl = $("storyRegion");
+      const contentEl = $("storyContent");
+
+      if (!titleEl || !regionEl || !contentEl) return;
+
+      const title = titleEl.value.trim();
+      const region = regionEl.value;
+      const content = contentEl.value.trim();
+
+      if (!title || !region || !content) {
+        showError("Please provide a title, region, and story content.");
         return;
       }
-      
-      userVotesMap[storyId] = newVote;
 
-      const { error: storyError } = await window.supabaseClient
-        .from("stories")
-        .update({
-          upvotes: story.upvotes,
-          downvotes: story.downvotes,
-        })
-        .eq("id", storyId);
+      await submitStoryToSupabase({
+        title,
+        region,
+        content,
+        parentId: currentParentStoryId,
+      });
 
-      if (storyError) {
-        console.error("Error updating story score:", storyError);
+      titleEl.value = "";
+      contentEl.value = "";
+      const parentLabel = $("parentStoryLabel");
+      if (parentLabel) {
+        parentLabel.textContent = "Starting a new, original tale.";
+        parentLabel.classList.remove("has-parent");
       }
+      currentParentStoryId = null;
+    });
 
-      renderStories();
-      renderProfileStatsAndAchievements();
-    } catch (e) {
-      console.error(e);
-      showError("Error voting. Please try again.");
+    const regionSelect = $("storyRegion");
+    if (regionSelect) {
+      regionSelect.innerHTML =
+        `<option value="">Select a region</option>` +
+        REGIONS.map((r) => `<option value="${r}">${r}</option>`).join("");
     }
-  }
-
-  // ---- Story modal & comments (Supabase) ----
-
-  async function loadCommentsForStory(storyId) {
-    const { data, error } = await window.supabaseClient
-      .from("comments")
-      .select("*")
-      .eq("story_id", storyId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error loading comments:", error);
-      return [];
-    }
-    return data || [];
   }
 
   function initStoryModal() {
     const modal = $("storyModal");
-    const closeBtn = $("closeStoryModalBtn");
+    const modalContent = $("storyModalContent");
+    const modalClose = $("storyModalClose");
+    const replyBtn = $("modalReplyBtn");
 
-    if (!modal || !closeBtn) return;
+    if (!modal || !modalContent || !modalClose || !replyBtn) return;
 
-    closeBtn.addEventListener("click", () => {
-      modal.hidden = true;
+    modalClose.addEventListener("click", () => {
+      modal.classList.remove("open");
       currentStoryForModal = null;
     });
 
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
-        modal.hidden = true;
+        modal.classList.remove("open");
         currentStoryForModal = null;
       }
     });
 
-    // NEW: Close modal with Escape key
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !modal.hidden) {
-        modal.hidden = true;
-        currentStoryForModal = null;
+    replyBtn.addEventListener("click", () => {
+      if (currentStoryForModal) {
+        setParentStoryForSubmit(currentStoryForModal.id);
       }
     });
   }
 
   async function openStoryModal(storyId) {
+    const modal = $("storyModal");
+    const titleEl = $("modalStoryTitle");
+    const metaEl = $("modalStoryMeta");
+    const bodyEl = $("modalStoryBody");
+    const branchInfoEl = $("modalBranchInfo");
+    const voteUpBtn = $("modalVoteUp");
+    const voteDownBtn = $("modalVoteDown");
+    const scoreEl = $("modalStoryScore");
+
+    if (
+      !modal ||
+      !titleEl ||
+      !metaEl ||
+      !bodyEl ||
+      !voteUpBtn ||
+      !voteDownBtn ||
+      !scoreEl ||
+      !branchInfoEl
+    )
+      return;
+
     const story = getStoryById(storyId);
-    if (!story) return;
+    if (!story) {
+      showError("Story not found.");
+      return;
+    }
 
     currentStoryForModal = story;
-    const container = $("storyModalContent");
-    const modal = $("storyModal");
-    if (!container || !modal) return;
 
-    const commentsRows = await loadCommentsForStory(storyId);
-    const comments = commentsRows.map((c) => ({
-      id: c.id,
-      author: c.author_username,
-      text: c.text,
-      createdAt: c.created_at,
-    }));
+    titleEl.textContent = story.title;
+    bodyEl.textContent = story.content;
 
-    const children = getChildrenOfStory(story.id);
     const root = getRootOfStory(story);
-    const isRoot = root.id === story.id;
+    const branchCount = computeBranchCount(story.id);
+    const score = getStoryScore(story);
+    const userVote = getUserVoteForStory(story.id);
 
-    container.innerHTML = `
-      <h3 id="storyModalTitle" class="story-modal-title">${escapeHtml(
-        story.title
-      )}</h3>
-      <div class="story-modal-meta">
-        by <strong>${escapeHtml(story.author)}</strong>
-        ${story.house ? ` of <em>${escapeHtml(story.house)}</em>` : ""}
-        ${story.region ? ` • ${escapeHtml(story.region)}` : ""}
-        ${story.createdAt ? ` • ${escapeHtml(formatDate(story.createdAt))}` : ""}
-      </div>
-      <div class="story-modal-body">${escapeHtml(story.content)}</div>
-
-      <div class="story-modal-thread">
-        <p class="muted">
-          ${
-            isRoot
-              ? "Root of this thread."
-              : `Part of thread starting from <strong>${escapeHtml(
-                  root.title
-                )}</strong>.`
-          }
-          ${
-            children.length
-              ? ` This chapter has <strong>${children.length}</strong> continuation(s).`
-              : ""
-          }
-        </p>
-      </div>
-
-      <section class="story-modal-comments">
-        <h4>Comments</h4>
-        <ul class="comment-list" id="modalCommentList">
-          ${
-            comments.length
-              ? comments
-                  .map(
-                    (c) => `
-            <li>
-              <div>${escapeHtml(c.text)}</div>
-              <div class="comment-meta">
-                by ${escapeHtml(c.author)} • ${escapeHtml(formatDate(c.createdAt))}
-              </div>
-            </li>`
-                  )
-                  .join("")
-              : '<li class="muted">No comments yet. Be the first to speak.</li>'
-          }
-        </ul>
-        
-		<label class="field-label" for="modalCommentInput">Add comment</label>
-        <textarea id="modalCommentInput" class="field" rows="3" placeholder="Leave a few words..."></textarea>
-        <button id="modalCommentBtn" type="button" class="btn btn-primary">Post Comment</button>
-      </section>
+    metaEl.innerHTML = `
+      <span class="story-region-tag">${story.region}</span>
+      <span class="story-author">@${story.authorUsername}</span>
+      <span class="story-date">${formatDate(story.createdAt)}</span>
     `;
 
-    modal.hidden = false;
-
-    const commentBtn = $("modalCommentBtn");
-    if (commentBtn) {
-      commentBtn.addEventListener("click", async () => {
-        if (!requireLogin()) return;
-        
-        const text = ($("modalCommentInput").value || "").trim();
-        if (!text) {
-          showError("Comment cannot be empty.");
-          return;
-        }
-
-        try {
-          const { error } = await window.supabaseClient
-            .from("comments")
-            .insert({
-              story_id: currentStoryForModal.id,
-              author_profile_id: currentUser.id,
-              author_username: currentUser.username,
-              text,
-            });
-
-          if (error) {
-            console.error("Error adding comment:", error);
-            showError("Error posting comment.");
-            return;
+    if (root && root.id !== story.id) {
+      branchInfoEl.innerHTML = `
+        <div class="branch-info">
+          <span>Branch of: "${root.title}"</span>
+          ${
+            branchCount > 0
+              ? `<span>Has ${branchCount} ${
+                  branchCount === 1 ? "reply" : "replies"
+                } coiled beneath it.</span>`
+              : ""
           }
-
-          $("modalCommentInput").value = "";
-          showSuccess("Comment posted!");
-          await openStoryModal(currentStoryForModal.id);
-        } catch (e) {
-          console.error(e);
-          showError("Error posting comment.");
-        }
-      });
+        </div>
+      `;
+    } else if (branchCount > 0) {
+      branchInfoEl.innerHTML = `
+        <div class="branch-info">
+          <span>Root tale with ${branchCount} ${
+        branchCount === 1 ? "reply" : "replies"
+      } branching off.</span>
+        </div>
+      `;
+    } else {
+      branchInfoEl.innerHTML = `
+        <div class="branch-info">
+          <span>This tale stands alone... for now.</span>
+        </div>
+      `;
     }
+
+    scoreEl.textContent = score;
+
+    voteUpBtn.classList.toggle("voted", userVote === 1);
+    voteDownBtn.classList.toggle("voted", userVote === -1);
+
+    voteUpBtn.onclick = () => handleVoteClick(story.id, "up");
+    voteDownBtn.onclick = () => handleVoteClick(story.id, "down");
+
+    modal.classList.add("open");
   }
 
-  // ---- Realm map ----
+  // ---- Realm Map ----
 
   function renderRealmMap() {
-    const grid = $("realmGrid");
-    const filterEl = $("mapFilter");
-    if (!grid || !filterEl) return;
+    const mapGrid = $("realmRegionsContainer");
+    if (!mapGrid) return;
 
-    const regionStories = {};
+    const counts = countStoriesPerRegion();
 
-    REGIONS.forEach((region) => {
-      regionStories[region] = stories.filter((s) => s.region === region);
-    });
+    mapGrid.innerHTML = "";
 
-    grid.innerHTML = REGIONS.map((region) => {
-      const count = regionStories[region].length;
-      const tagline =
-        region === "The North"
-          ? "Snow, wolves, and old gods."
-          : region === "Dorne"
-          ? "Sun, spears, and wine."
-          : region === "Beyond the Wall"
-          ? "Only the brave return."
-          : region === "The Westerlands"
-          ? "Gold in the hills."
-          : region === "The Reach"
-          ? "Fields of plenty."
-          : region === "The Crownlands"
-          ? "Where the throne casts a long shadow."
-          : region === "The Vale"
-          ? "Mountains and sky."
-          : region === "The Riverlands"
-          ? "Rivers run red with history."
-          : region === "The Stormlands"
-          ? "Thunder and stubborn kings."
-          : "Fertile land and quiet schemes.";
+    for (const region of REGIONS) {
+      const count = counts[region] || 0;
+      const hasStories = count > 0;
 
-      return `
-        <article class="region-card" data-region="${region}">
-          <h3 class="region-name">${region}</h3>
-          <p class="region-tagline">${tagline}</p>
-          <p class="region-count">${count} chapter${count === 1 ? "" : "s"}</p>
-        </article>
-      `;
-    }).join("");
-
-    Array.from(grid.querySelectorAll(".region-card")).forEach((card) => {
-      const region = card.getAttribute("data-region");
-      card.addEventListener("click", () => {
-        filterEl.value = region;
-        renderRealmStories();
-      });
-    });
-
-    filterEl.removeEventListener("change", renderRealmStories);
-    filterEl.addEventListener("change", renderRealmStories);
-
-    renderRealmStories();
-  }
-
-  function renderRealmStories() {
-    const regionFilter = $("mapFilter")?.value || "";
-    const listEl = $("realmStories");
-    const emptyEl = $("realmEmpty");
-    if (!listEl || !emptyEl) return;
-
-    let filtered = stories;
-    if (regionFilter) {
-      filtered = stories.filter((s) => s.region === regionFilter);
-    }
-
-    if (!filtered.length) {
-      listEl.innerHTML = "";
-      emptyEl.style.display = "block";
-      return;
-    }
-
-    emptyEl.style.display = "none";
-
-    listEl.innerHTML = filtered
-      .map((s) => {
-        const excerpt =
-          s.content.length > 160
-            ? s.content.slice(0, 160) + "…"
-            : s.content;
-
-        return `
-        <article class="story-card" data-id="${s.id}">
-          <h3>${escapeHtml(s.title)}</h3>
-          <div class="story-meta">
-            by <strong>${escapeHtml(s.author)}</strong>
-            ${s.house ? ` of <em>${escapeHtml(s.house)}</em>` : ""}
-            ${s.createdAt ? ` • ${escapeHtml(formatDate(s.createdAt))}` : ""}
-          </div>
-          <p class="story-excerpt">${escapeHtml(excerpt)}</p>
-          <div class="story-footer">
-            <div class="story-actions">
-              <button class="btn btn-primary btn-sm js-view-story" type="button">Read</button>
-            </div>
-          </div>
-        </article>
-      `;
-      })
-      .join("");
-
-    Array.from(listEl.querySelectorAll(".story-card")).forEach((card) => {
-      const id = card.getAttribute("data-id");
-      const story = getStoryById(id);
-      if (!story) return;
-      const viewBtn = card.querySelector(".js-view-story");
-      if (viewBtn) {
-        viewBtn.addEventListener("click", () => openStoryModal(story.id));
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "realm-region-card";
+      if (hasStories) {
+        card.classList.add("has-stories");
       }
-    });
+
+      card.innerHTML = `
+        <div class="realm-region-header">
+          <span class="realm-region-name">${region}</span>
+        </div>
+        <div class="realm-region-body">
+          <span class="realm-region-count">${count} ${
+        count === 1 ? "tale" : "tales"
+      }</span>
+          <span class="realm-region-hint">${
+            hasStories
+              ? "Click to filter stories to this region."
+              : "No tales yet. Perhaps you’ll be the first."
+          }</span>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        const regionFilter = $("regionFilter");
+        if (regionFilter) {
+          regionFilter.value = region;
+          renderStoriesList();
+          const storiesTabButton = document.querySelector(
+            '[data-tab-target="storiesTab"]'
+          );
+          if (storiesTabButton) storiesTabButton.click();
+        }
+      });
+
+      mapGrid.appendChild(card);
+    }
   }
 
-  // ---- Ravens (Supabase) ----
+  // ---- Ravens UI ----
 
-  async function loadRavensFromSupabase() {
+  function renderRavensUI() {
+    const inboxList = $("ravenInbox");
+    const sentList = $("ravenSent");
+    const emptyInbox = $("emptyInbox");
+    const emptySent = $("emptySent");
+
+    if (!inboxList || !sentList) return;
+
+    inboxList.innerHTML = "";
+    sentList.innerHTML = "";
+
     if (!currentUser) {
-      ravens = [];
+      inboxList.innerHTML =
+        `<p class="muted">Log in to see ravens that have reached you.</p>`;
+      sentList.innerHTML =
+        `<p class="muted">Log in to see ravens you’ve sent.</p>`;
+      if (emptyInbox) emptyInbox.style.display = "none";
+      if (emptySent) emptySent.style.display = "none";
       return;
     }
 
-    const username = currentUser.username;
+    const inbox = ravens.filter(
+      (r) => r.recipient_username === currentUser.username
+    );
+    const sent = ravens.filter((r) => r.sender_id === currentUser.id);
 
-    const { data, error } = await window.supabaseClient
-      .from("ravens")
-      .select("*")
-      .or(`to_username.eq.${username},from_username.eq.${username}`)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading ravens:", error);
-      ravens = [];
+    if (inbox.length === 0) {
+      inboxList.innerHTML =
+        `<p class="muted">No ravens perched on your sill yet.</p>`;
+      if (emptyInbox) emptyInbox.style.display = "block";
     } else {
-      ravens = data || [];
+      if (emptyInbox) emptyInbox.style.display = "none";
+      for (const raven of inbox) {
+        const li = document.createElement("li");
+        li.className = "raven-item";
+        li.innerHTML = `
+          <div class="raven-header">
+            <span class="raven-from">From: @${raven.sender_username}</span>
+            <span class="raven-date">${formatDate(raven.created_at)}</span>
+          </div>
+          <div class="raven-message">${escapeHtml(raven.message)}</div>
+        `;
+        inboxList.appendChild(li);
+      }
+    }
+
+    if (sent.length === 0) {
+      sentList.innerHTML =
+        `<p class="muted">No ravens have taken wing from your rookery yet.</p>`;
+      if (emptySent) emptySent.style.display = "block";
+    } else {
+      if (emptySent) emptySent.style.display = "none";
+      for (const raven of sent) {
+        const li = document.createElement("li");
+        li.className = "raven-item raven-sent";
+        li.innerHTML = `
+          <div class="raven-header">
+            <span class="raven-to">To: @${raven.recipient_username}</span>
+            <span class="raven-date">${formatDate(raven.created_at)}</span>
+          </div>
+          <div class="raven-message">${escapeHtml(raven.message)}</div>
+        `;
+        sentList.appendChild(li);
+      }
     }
   }
 
   function initRavensUI() {
-    const btn = $("sendRavenBtn");
-    if (btn) {
-      btn.addEventListener("click", sendRaven);
-    }
-    renderRavens();
-  }
+    const form = $("ravenForm");
+    const toInput = $("ravenTo");
+    const bodyInput = $("ravenBody");
 
-  async function sendRaven() {
-    if (!requireLogin()) return;
+    if (!form || !toInput || !bodyInput) return;
 
-    const recipient = ($("ravenRecipient").value || "").trim();
-    const message = ($("ravenMessage").value || "").trim();
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!requireLogin()) return;
 
-    if (!recipient || !message) {
-      showError("Recipient and message are required.");
-      return;
-    }
+      const recipient = toInput.value.trim();
+      const message = bodyInput.value.trim();
 
-    try {
-      const { error } = await window.supabaseClient
-        .from("ravens")
-        .insert({
-          from_profile_id: currentUser.id,
-          from_username: currentUser.username,
-          to_username: recipient,
-          body: message,
-        });
-
-      if (error) {
-        console.error("Error sending raven:", error);
-        showError("Error sending raven.");
+      if (!recipient || !message) {
+        showError("Please provide a recipient and a message for your raven.");
         return;
       }
 
-      $("ravenRecipient").value = "";
-      $("ravenMessage").value = "";
-      showSuccess("Raven sent to the realm!");
+      await sendRavenToSupabase({
+        recipientUsername: recipient,
+        message,
+      });
 
-      await loadRavensFromSupabase();
-      renderRavens();
-    } catch (e) {
-      console.error(e);
-      showError("Error sending raven.");
+      bodyInput.value = "";
+    });
+  }
+
+  // ---- Tabs & navigation ----
+
+  function initTabs() {
+    const tabButtons = document.querySelectorAll("[data-tab-target]");
+    const tabs = document.querySelectorAll(".tab-pane");
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = btn.getAttribute("data-tab-target");
+        if (!target) return;
+        const tab = $(target);
+        if (!tab) return;
+
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        tabs.forEach((t) => t.classList.remove("active"));
+
+        btn.classList.add("active");
+        tab.classList.add("active");
+      });
+    });
+
+    const initialTab = $("storiesTab");
+    const initialBtn = document.querySelector(
+      '[data-tab-target="storiesTab"]'
+    );
+    if (initialTab && initialBtn) {
+      initialTab.classList.add("active");
+      initialBtn.classList.add("active");
     }
   }
 
-  function renderRavens() {
+  // ---- Header / Auth status ----
+
+  function renderUserStatus() {
+    const userStatusEl = $("userStatus");
+    const mobileStatusEl = $("mobileUserStatus");
+    if (!userStatusEl && !mobileStatusEl) return;
+
+    const html = currentUser
+      ? `
+        <span class="user-pill house-${(currentUser.house || "")
+          .toLowerCase()
+          .replace(/\s+/g, "-")}">
+          <span class="user-pill-initial">${String(
+            currentUser.username || "?"
+          )
+            .charAt(0)
+            .toUpperCase()}</span>
+          <span class="user-pill-name">@${currentUser.username}</span>
+          <span class="user-pill-house">${currentUser.house || "Wanderer"}</span>
+        </span>
+      `
+      : `
+        <a href="login.html" class="link-muted">Log in</a>
+        <span class="divider">|</span>
+        <a href="signup.html" class="link-muted">Join the realm</a>
+      `;
+
+    if (userStatusEl) userStatusEl.innerHTML = html;
+    if (mobileStatusEl) mobileStatusEl.innerHTML = html;
+  }
+
+  function applyHouseTheme(house) {
+    const body = document.body;
+    body.classList.remove(
+      "house-stark",
+      "house-arryn",
+      "house-tully",
+      "house-lannister",
+      "house-tyrell",
+      "house-martell",
+      "house-baratheon",
+      "house-targaryen",
+      "house-nightswatch",
+      "house-wanderer"
+    );
+
+    switch ((house || "").toLowerCase()) {
+      case "stark":
+        body.classList.add("house-stark");
+        break;
+      case "arryn":
+        body.classList.add("house-arryn");
+        break;
+      case "tully":
+        body.classList.add("house-tully");
+        break;
+      case "lannister":
+        body.classList.add("house-lannister");
+        break;
+      case "tyrell":
+        body.classList.add("house-tyrell");
+        break;
+      case "martell":
+        body.classList.add("house-martell");
+        break;
+      case "baratheon":
+        body.classList.add("house-baratheon");
+        break;
+      case "targaryen":
+        body.classList.add("house-targaryen");
+        break;
+      case "night's watch":
+      case "nightswatch":
+      case "nightwatch":
+        body.classList.add("house-nightswatch");
+        break;
+      default:
+        body.classList.add("house-wanderer");
+        break;
+    }
+  }
+
+  function updateAuthLinks() {
+    const loginLinks = document.querySelectorAll(".login-link");
+    const signupLinks = document.querySelectorAll(".signup-link");
+    const profileLinks = document.querySelectorAll(".profile-link");
+
+    if (currentUser) {
+      loginLinks.forEach((el) => (el.style.display = "none"));
+      signupLinks.forEach((el) => (el.style.display = "none"));
+      profileLinks.forEach((el) => (el.style.display = ""));
+    } else {
+      loginLinks.forEach((el) => (el.style.display = ""));
+      signupLinks.forEach((el) => (el.style.display = ""));
+      profileLinks.forEach((el) => (el.style.display = "none"));
+    }
+  }
+
+  // ---- Toast initialization ----
+
+  function initToasts() {
+    const toastEls = document.querySelectorAll("[data-toast]");
+    toastEls.forEach((el) => {
+      const msg = el.dataset.toast || el.textContent;
+      const type = el.dataset.toastType || "info";
+      if (msg) {
+        showToast(msg, type);
+      }
+      el.remove();
+    });
+  }
+
+  // ---- NEW: Better login check ----
+
+  function requireLogin() {
     if (!currentUser) {
-      const inboxEmptyEl = $("ravenInboxEmpty");
-      const sentEmptyEl = $("ravenSentEmpty");
-      const inboxEl = $("ravenInbox");
-      const sentEl = $("ravenSent");
-      if (inboxEl) inboxEl.innerHTML = "";
-      if (sentEl) sentEl.innerHTML = "";
-      if (inboxEmptyEl) inboxEmptyEl.style.display = "block";
-      if (sentEmptyEl) sentEmptyEl.style.display = "block";
-      return;
+      showError("You must be signed in to do that. Please log in or create an account.");
+      return false;
     }
+    return true;
+  }
 
-    const inboxEl = $("ravenInbox");
-    const sentEl = $("ravenSent");
-    const inboxEmptyEl = $("ravenInboxEmpty");
-    const sentEmptyEl = $("ravenSentEmpty");
-    if (!inboxEl || !sentEl || !inboxEmptyEl || !sentEmptyEl) return;
+  // ---- Domain enforcement ----
 
-    const inbox = ravens.filter((r) => r.to_username === currentUser.username);
-    const sent = ravens.filter((r) => r.from_username === currentUser.username);
+  function enforceDomain() {
+    const warningEl = $("domainWarning");
+    const hostname = window.location.hostname;
 
-    if (!inbox.length) {
-      inboxEl.innerHTML = "";
-      inboxEmptyEl.style.display = "block";
+    const isFile = hostname === "" || hostname === "localhost";
+    const isCorrectDomain = hostname.includes("westeroschronicles.com");
+
+    if (!warningEl) return;
+
+    if (isFile || isCorrectDomain) {
+      warningEl.style.display = "none";
     } else {
-      inboxEmptyEl.style.display = "none";
-      inboxEl.innerHTML = inbox
-        .map(
-          (r) => `
-        <article class="raven-card">
-          <div class="raven-meta">
-            From <strong>${escapeHtml(r.from_username)}</strong>
-            • ${escapeHtml(formatDate(r.created_at))}
-          </div>
-          <div class="raven-body">${escapeHtml(r.body)}</div>
-        </article>
-      `
-        )
-        .join("");
-    }
-
-    if (!sent.length) {
-      sentEl.innerHTML = "";
-      sentEmptyEl.style.display = "block";
-    } else {
-      sentEmptyEl.style.display = "none";
-      sentEl.innerHTML = sent
-        .map(
-          (r) => `
-        <article class="raven-card">
-          <div class="raven-meta">
-            To <strong>${escapeHtml(r.to_username)}</strong>
-            • ${escapeHtml(formatDate(r.created_at))}
-          </div>
-          <div class="raven-body">${escapeHtml(r.body)}</div>
-        </article>
-      `
-        )
-        .join("");
+      warningEl.style.display = "block";
+      warningEl.textContent =
+        "⚠ You are viewing a mirrored or development version of WesterosChronicles.com. For the true experience, visit westeroschronicles.com.";
     }
   }
 
@@ -1244,10 +1393,10 @@
     initStoryModal();
     initProfileUI();
     initRavensUI();
-    renderRealmMap();
+    initToasts();
   }
 
-  // ---- Startup (no forced redirect) ----
+  // ---- Bootstrapping ----
 
   document.addEventListener("DOMContentLoaded", async () => {
     enforceDomain();
@@ -1272,7 +1421,7 @@
     }
 
     if (profile) {
-      const settings = getUserSettings(profile.username);
+      const settings = { snow: !!profile.snow_enabled };
       currentUser = {
         ...profile,
         settings,
