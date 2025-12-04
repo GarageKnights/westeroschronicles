@@ -106,6 +106,66 @@
     };
   }
 
+  // ---- NEW: Toast notifications ----
+
+  function showError(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--danger);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+      max-width: 300px;
+      animation: slideIn 0.3s ease;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = 'slideOut 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  function showSuccess(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--accent-soft);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+      max-width: 300px;
+      animation: slideIn 0.3s ease;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = 'slideOut 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // ---- NEW: Better login check ----
+
+  function requireLogin() {
+    if (!currentUser) {
+      showError("You must be signed in to do that. Please log in or create an account.");
+      return false;
+    }
+    return true;
+  }
+
   // ---- Domain enforcement ----
 
   function enforceDomain() {
@@ -211,18 +271,15 @@
     if (!linksEl) return;
 
     if (!currentUser) {
-      // Guest view
       linksEl.innerHTML = `
         <a href="login.html">Sign in</a>
         <a href="signup.html">Create account</a>
       `;
     } else {
-      // Logged-in view
       linksEl.innerHTML = `
-        <span class="auth-hello">Welcome, ${escapeHtml(
+        <span class="auth-hello" style="color: var(--text-muted); font-size: 0.85rem;">Welcome, ${escapeHtml(
           currentUser.username
         )}</span>
-        <button type="button" class="btn btn-sm" onclick="window.logoutAndRedirect()">Log out</button>
       `;
     }
   }
@@ -253,21 +310,18 @@
     }
 
     saveBtn.addEventListener("click", async () => {
-      if (!currentUser) return;
+      if (!requireLogin()) return;
       const bio = bioField.value || "";
       currentUser.bio = bio;
       try {
         await saveProfileBio(bio);
         renderProfileCard();
         renderProfileStatsAndAchievements();
-        statusEl.textContent = "Profile saved.";
+        showSuccess("Profile saved.");
       } catch (e) {
         console.error(e);
-        statusEl.textContent = "Error saving profile.";
+        showError("Error saving profile.");
       }
-      setTimeout(() => {
-        statusEl.textContent = "";
-      }, 2000);
     });
 
     toggleSnowEl.addEventListener("change", () => {
@@ -326,7 +380,6 @@
       (s) => s.author === currentUser.username
     );
 
-    // Comments count would require extra queries; we keep it 0 for now.
     const userComments = 0;
 
     const totalScore = userStories.reduce(
@@ -440,9 +493,20 @@
     if (btn) btn.click();
   }
 
-  // ---- Stories (Supabase) ----
+  // ---- Stories (Supabase) - WITH LOADING STATES ----
 
   async function loadStoriesFromSupabase() {
+    const listEl = $("storyList");
+    const emptyEl = $("storiesEmpty");
+    
+    // Show loading
+    if (listEl) {
+      listEl.innerHTML = '<p class="muted" style="padding: 20px;">Loading stories from the realm...</p>';
+    }
+    if (emptyEl) {
+      emptyEl.style.display = "none";
+    }
+
     const { data, error } = await window.supabaseClient
       .from("stories")
       .select("*")
@@ -450,10 +514,15 @@
 
     if (error) {
       console.error("Error loading stories:", error);
+      if (listEl) {
+        listEl.innerHTML = '<p class="error-text" style="padding: 20px;">Failed to load stories. Please refresh the page.</p>';
+      }
       stories = [];
-    } else {
-      stories = (data || []).map(mapStoryRow);
+      return;
     }
+    
+    stories = (data || []).map(mapStoryRow);
+    renderStories();
   }
 
   async function loadUserVotesFromSupabase() {
@@ -500,23 +569,15 @@
     renderStories();
   }
 
-  function requireLoginMessage() {
-    alert("You must be signed in to do that.");
-  }
-
   async function handleSubmitStory() {
-    if (!currentUser) {
-      requireLoginMessage();
-      return;
-    }
+    if (!requireLogin()) return;
 
     const title = ($("storyTitle").value || "").trim();
     const region = $("storyRegion").value || "";
     const content = ($("storyContent").value || "").trim();
-    const statusEl = $("submitStatus");
 
     if (!title || !content) {
-      statusEl.textContent = "Title and content are required.";
+      showError("Title and content are required.");
       return;
     }
 
@@ -537,7 +598,7 @@
 
       if (error) {
         console.error("Error inserting story:", error);
-        statusEl.textContent = "Error saving chapter.";
+        showError("Error saving chapter.");
         return;
       }
 
@@ -550,10 +611,7 @@
       currentParentStoryId = null;
       updateSubmitParentInfo();
 
-      statusEl.textContent = "Chapter saved to the realm.";
-      setTimeout(() => {
-        statusEl.textContent = "";
-      }, 2000);
+      showSuccess("Chapter saved to the realm!");
 
       renderStories();
       renderRealmMap();
@@ -561,7 +619,7 @@
       switchToTab("stories");
     } catch (e) {
       console.error(e);
-      statusEl.textContent = "Error saving chapter.";
+      showError("Error saving chapter. Please try again.");
     }
   }
 
@@ -695,10 +753,7 @@
       }
       if (continueBtn) {
         continueBtn.addEventListener("click", () => {
-          if (!currentUser) {
-            requireLoginMessage();
-            return;
-          }
+          if (!requireLogin()) return;
           currentParentStoryId = story.id;
           updateSubmitParentInfo();
           switchToTab("submit");
@@ -712,10 +767,8 @@
   }
 
   async function handleVoteClick(storyId, btn) {
-    if (!currentUser) {
-      requireLoginMessage();
-      return;
-    }
+    if (!requireLogin()) return;
+    
     const story = getStoryById(storyId);
     if (!story) return;
 
@@ -745,9 +798,11 @@
 
       if (voteError) {
         console.error("Error saving vote:", voteError);
-      } else {
-        userVotesMap[storyId] = newVote;
+        showError("Error saving vote.");
+        return;
       }
+      
+      userVotesMap[storyId] = newVote;
 
       const { error: storyError } = await window.supabaseClient
         .from("stories")
@@ -765,6 +820,7 @@
       renderProfileStatsAndAchievements();
     } catch (e) {
       console.error(e);
+      showError("Error voting. Please try again.");
     }
   }
 
@@ -797,6 +853,14 @@
 
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
+        modal.hidden = true;
+        currentStoryForModal = null;
+      }
+    });
+
+    // NEW: Close modal with Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !modal.hidden) {
         modal.hidden = true;
         currentStoryForModal = null;
       }
@@ -872,8 +936,8 @@
               : '<li class="muted">No comments yet. Be the first to speak.</li>'
           }
         </ul>
-
-        <label class="field-label" for="modalCommentInput">Add comment</label>
+        
+		<label class="field-label" for="modalCommentInput">Add comment</label>
         <textarea id="modalCommentInput" class="field" rows="3" placeholder="Leave a few words..."></textarea>
         <button id="modalCommentBtn" type="button" class="btn btn-primary">Post Comment</button>
       </section>
@@ -884,12 +948,13 @@
     const commentBtn = $("modalCommentBtn");
     if (commentBtn) {
       commentBtn.addEventListener("click", async () => {
-        if (!currentUser || !currentStoryForModal) {
-          requireLoginMessage();
+        if (!requireLogin()) return;
+        
+        const text = ($("modalCommentInput").value || "").trim();
+        if (!text) {
+          showError("Comment cannot be empty.");
           return;
         }
-        const text = ($("modalCommentInput").value || "").trim();
-        if (!text) return;
 
         try {
           const { error } = await window.supabaseClient
@@ -903,13 +968,16 @@
 
           if (error) {
             console.error("Error adding comment:", error);
+            showError("Error posting comment.");
             return;
           }
 
           $("modalCommentInput").value = "";
-          await openStoryModal(currentStoryForModal.id); // reload modal
+          showSuccess("Comment posted!");
+          await openStoryModal(currentStoryForModal.id);
         } catch (e) {
           console.error(e);
+          showError("Error posting comment.");
         }
       });
     }
@@ -1063,17 +1131,13 @@
   }
 
   async function sendRaven() {
-    if (!currentUser) {
-      requireLoginMessage();
-      return;
-    }
+    if (!requireLogin()) return;
 
     const recipient = ($("ravenRecipient").value || "").trim();
     const message = ($("ravenMessage").value || "").trim();
-    const statusEl = $("ravenStatus");
 
     if (!recipient || !message) {
-      statusEl.textContent = "Recipient and message are required.";
+      showError("Recipient and message are required.");
       return;
     }
 
@@ -1089,22 +1153,19 @@
 
       if (error) {
         console.error("Error sending raven:", error);
-        statusEl.textContent = "Error sending raven.";
+        showError("Error sending raven.");
         return;
       }
 
       $("ravenRecipient").value = "";
       $("ravenMessage").value = "";
-      statusEl.textContent = "Raven sent to the realm.";
-      setTimeout(() => {
-        statusEl.textContent = "";
-      }, 2000);
+      showSuccess("Raven sent to the realm!");
 
       await loadRavensFromSupabase();
       renderRavens();
     } catch (e) {
       console.error(e);
-      statusEl.textContent = "Error sending raven.";
+      showError("Error sending raven.");
     }
   }
 
@@ -1171,7 +1232,7 @@
     }
   }
 
-  // ---- Post-login (really “post-init”) ----
+  // ---- Post-login (really "post-init") ----
 
   async function initPostLogin() {
     await loadStoriesFromSupabase();
