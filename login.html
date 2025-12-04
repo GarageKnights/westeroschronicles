@@ -5,7 +5,6 @@
   <title>Westeros Chronicles – Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="css/styles.css" />
-  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth.js" defer></script>
   <style>
@@ -14,55 +13,85 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      padding: 20px;
     }
-    .auth-card {
+    .auth-container {
       max-width: 420px;
       width: 100%;
+      background: #2a1f18;
+      border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      padding: 32px;
+      box-shadow: var(--shadow-soft);
+    }
+    .auth-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .auth-title {
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin: 0 0 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .auth-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
     .auth-note {
       font-size: 0.8rem;
-      opacity: 0.8;
-      margin-top: 0.5rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+    .auth-note a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .auth-note a:hover {
+      text-decoration: underline;
+    }
+    .auth-error {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      text-align: center;
+      min-height: 1.2em;
     }
   </style>
 </head>
-<body class="app-root">
-  <div class="app-shell">
-    <header class="app-header">
-      <h1 class="app-title">Westeros Chronicles</h1>
-      <p class="app-subtitle">Only the sworn may enter</p>
+<body>
+  <div class="auth-container">
+    <header class="auth-header">
+      <h1 class="auth-title">Westeros Chronicles</h1>
+      <p class="auth-subtitle">Only the sworn may enter</p>
     </header>
 
-    <main class="app-main">
-      <section class="card auth-card">
-        <h2>Log in</h2>
+    <form id="login-form" class="auth-form">
+      <div>
+        <label class="field-label" for="login-username">Username</label>
+        <input type="text" id="login-username" class="field" required />
+      </div>
 
-        <form id="login-form" class="form-grid">
-          <label class="form-field">
-            <span>Username</span>
-            <input type="text" id="login-username" required />
-          </label>
+      <div>
+        <label class="field-label" for="login-password">Password</label>
+        <input type="password" id="login-password" class="field" required />
+      </div>
 
-          <label class="form-field">
-            <span>Password</span>
-            <input type="password" id="login-password" required />
-          </label>
+      <button type="submit" class="btn btn-primary">Enter the Realm</button>
 
-          <button type="submit" class="btn btn-primary">Enter</button>
+      <p class="auth-note">
+        New to the realm? <a href="signup.html">Swear your name</a>
+      </p>
 
-          <p class="auth-note">
-            New to the realm? <a href="signup.html">Swear your name</a>.
-          </p>
-
-          <p class="auth-note">
-            Forgot your password? If your email is confirmed, you can reset it from a future
-            “forgot password” link (we can add this later).
-          </p>
-
-          <p id="login-error" class="auth-note" style="color: #ff6b6b;"></p>
-        </form>
-      </section>
-    </main>
+      <p id="login-error" class="auth-error"></p>
+    </form>
   </div>
 
   <script>
