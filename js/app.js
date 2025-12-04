@@ -573,7 +573,7 @@
         <p class="profile-house">House: ${escapeHtml(house)}</p>
         <p class="profile-bio">${escapeHtml(bio)}</p>
       </div>
-    `;
+  `;
 }
 
   function renderProfileStatsAndAchievements() {
@@ -829,14 +829,11 @@
   }
 
   function escapeHtml(str) {
-    if (typeof str !== "string") return "";
     return str
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-}
+      .replace(/>/g, "&gt;");
+  }
 
   function setParentStoryForSubmit(storyId) {
     const story = getStoryById(storyId);
