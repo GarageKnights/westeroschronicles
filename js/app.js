@@ -185,7 +185,7 @@
       for (let i = 0; i < 80; i++) {
         const flake = document.createElement("div");
         flake.className = "snowflake";
-        flake.textContent = "â„";
+        flake.textContent = "❄";
         flake.style.left = Math.random() * 100 + "%";
         flake.style.animationDelay = Math.random() * 10 + "s";
         flake.style.fontSize = 10 + Math.random() * 14 + "px";
@@ -668,19 +668,19 @@
     if (northernStories >= 1) {
       achievements.push({
         title: "Snowbound",
-        description: "Youâ€™ve written of the frozen North.",
+        description: "You’ve written of the frozen North.",
       });
     }
     if (dorneStories >= 1) {
       achievements.push({
         title: "Sun and Spear",
-        description: "Youâ€™ve written of distant Dorne.",
+        description: "You’ve written of distant Dorne.",
       });
     }
     if (beyondWallStories >= 1) {
       achievements.push({
         title: "Whispers Beyond",
-        description: "Youâ€™ve written of lands beyond the Wall.",
+        description: "You’ve written of lands beyond the Wall.",
       });
     }
 
@@ -787,17 +787,17 @@
         </header>
         <div class="story-excerpt">
           ${escapeHtml(story.content.slice(0, 220))}${
-        story.content.length > 220 ? "â€¦" : ""
+        story.content.length > 220 ? "…" : ""
       }
         </div>
         <footer class="story-footer">
           <div class="story-votes">
             <button class="vote-btn vote-up ${voteUpClass}" data-vote="up" aria-label="Upvote this story">
-              â–²
+              ▲
             </button>
             <span class="story-score">${score}</span>
             <button class="vote-btn vote-down ${voteDownClass}" data-vote="down" aria-label="Downvote this story">
-              â–¼
+              ▼
             </button>
           </div>
           <button class="btn-link view-story-btn">Read full tale</button>
@@ -1090,7 +1090,7 @@
           <span class="realm-region-hint">${
             hasStories
               ? "Click to filter stories to this region."
-              : "No tales yet. Perhaps youâ€™ll be the first."
+              : "No tales yet. Perhaps you’ll be the first."
           }</span>
         </div>
       `;
@@ -1128,7 +1128,7 @@
       inboxList.innerHTML =
         `<p class="muted">Log in to see ravens that have reached you.</p>`;
       sentList.innerHTML =
-        `<p class="muted">Log in to see ravens youâ€™ve sent.</p>`;
+        `<p class="muted">Log in to see ravens you’ve sent.</p>`;
       if (emptyInbox) emptyInbox.style.display = "none";
       if (emptySent) emptySent.style.display = "none";
       return;
@@ -1377,7 +1377,7 @@
     } else {
       warningEl.style.display = "block";
       warningEl.textContent =
-        "âš  You are viewing a mirrored or development version of WesterosChronicles.com. For the true experience, visit westeroschronicles.com.";
+        "⚠ You are viewing a mirrored or development version of WesterosChronicles.com. For the true experience, visit westeroschronicles.com.";
     }
   }
 
