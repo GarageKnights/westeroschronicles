@@ -556,25 +556,25 @@
   }
 
   function renderProfileCard() {
-    if (!currentUser) return;
-    const cardEl = $("profileCard");
-    if (!cardEl) return;
-
-    const letter = (currentUser.username || "?").charAt(0).toUpperCase();
-    const house = currentUser.house || "Wanderer";
-    const bio = currentUser.bio || "No words written yet.";
-
-    cardEl.innerHTML = `
-      <div class="profile-avatar house-${house.toLowerCase()}">
+	if (!currentUser) return;
+	const cardEl = $("profileCard");
+	if (!cardEl) return;
+	
+	const letter = (currentUser.username || "?").charAt(0).toUpperCase();
+	const house = currentUser.house || "Wanderer";
+	const bio = currentUser.bio || "No words written yet.";
+	
+	cardEl.innerHTML = `
+	  <div class="profile-avatar house-${house.toLowerCase().replace(/\s+/g, '-')}">
         <span>${letter}</span>
       </div>
       <div class="profile-meta">
-        <h3>${currentUser.username}</h3>
-        <p class="profile-house">House: ${house}</p>
-        <p class="profile-bio">${bio}</p>
+        <h3>${escapeHtml(currentUser.username)}</h3>
+        <p class="profile-house">House: ${escapeHtml(house)}</p>
+        <p class="profile-bio">${escapeHtml(bio)}</p>
       </div>
     `;
-  }
+}
 
   function renderProfileStatsAndAchievements() {
     if (!currentUser) return;
@@ -829,11 +829,14 @@
   }
 
   function escapeHtml(str) {
+    if (typeof str !== "string") return "";
     return str
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+}
 
   function setParentStoryForSubmit(storyId) {
     const story = getStoryById(storyId);
