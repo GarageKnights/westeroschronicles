@@ -185,7 +185,7 @@
       for (let i = 0; i < 80; i++) {
         const flake = document.createElement("div");
         flake.className = "snowflake";
-        flake.textContent = "❄";
+        flake.textContent = "â„";
         flake.style.left = Math.random() * 100 + "%";
         flake.style.animationDelay = Math.random() * 10 + "s";
         flake.style.fontSize = 10 + Math.random() * 14 + "px";
@@ -556,25 +556,25 @@
   }
 
   function renderProfileCard() {
-	if (!currentUser) return;
-	const cardEl = $("profileCard");
-	if (!cardEl) return;
-	
-	const letter = (currentUser.username || "?").charAt(0).toUpperCase();
-	const house = currentUser.house || "Wanderer";
-	const bio = currentUser.bio || "No words written yet.";
-	
-	cardEl.innerHTML = `
-	  <div class="profile-avatar house-${house.toLowerCase().replace(/\s+/g, '-')}">
+    if (!currentUser) return;
+    const cardEl = $("profileCard");
+    if (!cardEl) return;
+
+    const letter = (currentUser.username || "?").charAt(0).toUpperCase();
+    const house = currentUser.house || "Wanderer";
+    const bio = currentUser.bio || "No words written yet.";
+
+    cardEl.innerHTML = `
+      <div class="profile-avatar house-${house.toLowerCase()}">
         <span>${letter}</span>
       </div>
       <div class="profile-meta">
-        <h3>${escapeHtml(currentUser.username)}</h3>
-        <p class="profile-house">House: ${escapeHtml(house)}</p>
-        <p class="profile-bio">${escapeHtml(bio)}</p>
+        <h3>${currentUser.username}</h3>
+        <p class="profile-house">House: ${house}</p>
+        <p class="profile-bio">${bio}</p>
       </div>
-  `;
-}
+    `;
+  }
 
   function renderProfileStatsAndAchievements() {
     if (!currentUser) return;
@@ -668,19 +668,19 @@
     if (northernStories >= 1) {
       achievements.push({
         title: "Snowbound",
-        description: "You’ve written of the frozen North.",
+        description: "Youâ€™ve written of the frozen North.",
       });
     }
     if (dorneStories >= 1) {
       achievements.push({
         title: "Sun and Spear",
-        description: "You’ve written of distant Dorne.",
+        description: "Youâ€™ve written of distant Dorne.",
       });
     }
     if (beyondWallStories >= 1) {
       achievements.push({
         title: "Whispers Beyond",
-        description: "You’ve written of lands beyond the Wall.",
+        description: "Youâ€™ve written of lands beyond the Wall.",
       });
     }
 
@@ -787,17 +787,17 @@
         </header>
         <div class="story-excerpt">
           ${escapeHtml(story.content.slice(0, 220))}${
-        story.content.length > 220 ? "…" : ""
+        story.content.length > 220 ? "â€¦" : ""
       }
         </div>
         <footer class="story-footer">
           <div class="story-votes">
             <button class="vote-btn vote-up ${voteUpClass}" data-vote="up" aria-label="Upvote this story">
-              ▲
+              â–²
             </button>
             <span class="story-score">${score}</span>
             <button class="vote-btn vote-down ${voteDownClass}" data-vote="down" aria-label="Downvote this story">
-              ▼
+              â–¼
             </button>
           </div>
           <button class="btn-link view-story-btn">Read full tale</button>
@@ -1090,7 +1090,7 @@
           <span class="realm-region-hint">${
             hasStories
               ? "Click to filter stories to this region."
-              : "No tales yet. Perhaps you’ll be the first."
+              : "No tales yet. Perhaps youâ€™ll be the first."
           }</span>
         </div>
       `;
@@ -1128,7 +1128,7 @@
       inboxList.innerHTML =
         `<p class="muted">Log in to see ravens that have reached you.</p>`;
       sentList.innerHTML =
-        `<p class="muted">Log in to see ravens you’ve sent.</p>`;
+        `<p class="muted">Log in to see ravens youâ€™ve sent.</p>`;
       if (emptyInbox) emptyInbox.style.display = "none";
       if (emptySent) emptySent.style.display = "none";
       return;
@@ -1377,7 +1377,7 @@
     } else {
       warningEl.style.display = "block";
       warningEl.textContent =
-        "⚠ You are viewing a mirrored or development version of WesterosChronicles.com. For the true experience, visit westeroschronicles.com.";
+        "âš  You are viewing a mirrored or development version of WesterosChronicles.com. For the true experience, visit westeroschronicles.com.";
     }
   }
 
