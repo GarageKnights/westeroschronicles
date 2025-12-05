@@ -226,7 +226,6 @@
   }
 
   // ---- Login / Profile (Supabase) ----
-  // (UNCHANGED — your entire profile system stays exactly as written)
 
   function applyHouseTheme(house) {
     const body = document.body;
@@ -494,13 +493,13 @@
     if (btn) btn.click();
   }
 
-  // ---- Stories and Voting (unchanged logic until modal) ----
-  // (This entire section stays exactly as your original code)
+  // ---- Stories (Supabase) - WITH LOADING STATES ----
 
   async function loadStoriesFromSupabase() {
     const listEl = $("storyList");
     const emptyEl = $("storiesEmpty");
     
+    // Show loading
     if (listEl) {
       listEl.innerHTML = '<p class="muted" style="padding: 20px;">Loading stories from the realm...</p>';
     }
@@ -525,6 +524,7 @@
     stories = (data || []).map(mapStoryRow);
     renderStories();
   }
+
   async function loadUserVotesFromSupabase() {
     userVotesMap = {};
     if (!currentUser) return;
@@ -644,9 +644,187 @@
     titleSpan.textContent = story.title;
   }
 
-  // --------------------------------------------------------------------
-  // ---------------------  STORY MODAL SECTION  -------------------------
-  // --------------------------------------------------------------------
+  function renderStories() {
+    const listEl = $("storyList");
+    const emptyEl = $("storiesEmpty");
+    if (!listEl || !emptyEl) return;
+
+    const searchTerm = ($("storiesSearch")?.value || "").toLowerCase();
+    const regionFilter = $("storiesRegionFilter")?.value || "";
+    const sortBy = $("storiesSort")?.value || "newest";
+
+    let filtered = [...stories];
+
+    if (searchTerm) {
+      filtered = filtered.filter((s) => {
+        return (
+          (s.title && s.title.toLowerCase().includes(searchTerm)) ||
+          (s.author && s.author.toLowerCase().includes(searchTerm)) ||
+          (s.region && s.region.toLowerCase().includes(searchTerm)) ||
+          (s.content && s.content.toLowerCase().includes(searchTerm))
+        );
+      });
+    }
+
+    if (regionFilter) {
+      filtered = filtered.filter((s) => s.region === regionFilter);
+    }
+
+    if (sortBy === "newest") {
+      filtered.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+    } else if (sortBy === "top") {
+      filtered.sort((a, b) => getStoryScore(b) - getStoryScore(a));
+    } else if (sortBy === "branched") {
+      filtered.sort(
+        (a, b) =>
+          getChildrenOfStory(b.id).length - getChildrenOfStory(a.id).length
+      );
+    }
+
+    if (!filtered.length) {
+      listEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      return;
+    }
+
+    emptyEl.style.display = "none";
+
+    listEl.innerHTML = filtered
+      .map((s) => {
+        const excerpt =
+          s.content.length > 240
+            ? s.content.slice(0, 240) + "…"
+            : s.content;
+
+        const score = getStoryScore(s);
+        const branchCount = getChildrenOfStory(s.id).length;
+        const userVote = userVotesMap[s.id] || 0;
+
+        return `
+        <article class="story-card" data-id="${s.id}">
+          <h3>${escapeHtml(s.title)}</h3>
+          <div class="story-meta">
+            by <strong>${escapeHtml(s.author)}</strong>
+            ${s.house ? ` of <em>${escapeHtml(s.house)}</em>` : ""}
+            ${s.region ? ` • ${escapeHtml(s.region)}` : ""}
+            ${s.createdAt ? ` • ${escapeHtml(formatDate(s.createdAt))}` : ""}
+          </div>
+          <p class="story-excerpt">${escapeHtml(excerpt)}</p>
+          <div class="story-footer">
+            <div class="story-actions">
+              <button type="button" class="btn btn-primary btn-sm js-view-story">Read</button>
+              <button type="button" class="btn btn-sm js-continue-story">Continue story</button>
+            </div>
+            <div class="story-actions">
+              <span class="vote-chip">
+                <button type="button" class="js-vote ${
+                  userVote === 1 ? "active" : ""
+                }" data-vote="up">+</button>
+                <span>${score}</span>
+                <button type="button" class="js-vote ${
+                  userVote === -1 ? "active" : ""
+                }" data-vote="down">-</button>
+              </span>
+              ${
+                branchCount
+                  ? `<span class="thread-chip">${branchCount} branched continuations</span>`
+                  : ""
+              }
+            </div>
+          </div>
+        </article>
+      `;
+      })
+      .join("");
+
+    Array.from(listEl.querySelectorAll(".story-card")).forEach((card) => {
+      const id = card.getAttribute("data-id");
+      const story = getStoryById(id);
+      if (!story) return;
+
+      const viewBtn = card.querySelector(".js-view-story");
+      const continueBtn = card.querySelector(".js-continue-story");
+      const voteButtons = card.querySelectorAll(".js-vote");
+
+      if (viewBtn) {
+        viewBtn.addEventListener("click", () => openStoryModal(story.id));
+      }
+      if (continueBtn) {
+        continueBtn.addEventListener("click", () => {
+          if (!requireLogin()) return;
+          currentParentStoryId = story.id;
+          updateSubmitParentInfo();
+          switchToTab("submit");
+        });
+      }
+
+      voteButtons.forEach((btn) => {
+        btn.addEventListener("click", () => handleVoteClick(story.id, btn));
+      });
+    });
+  }
+
+  async function handleVoteClick(storyId, btn) {
+    if (!requireLogin()) return;
+    
+    const story = getStoryById(storyId);
+    if (!story) return;
+
+    const voteType = btn.getAttribute("data-vote");
+    const prevVote = userVotesMap[storyId] || 0;
+    let newVote = prevVote;
+
+    if (voteType === "up") {
+      newVote = prevVote === 1 ? 0 : 1;
+    } else if (voteType === "down") {
+      newVote = prevVote === -1 ? 0 : -1;
+    }
+
+    if (prevVote === 1) story.upvotes -= 1;
+    if (prevVote === -1) story.downvotes -= 1;
+    if (newVote === 1) story.upvotes += 1;
+    if (newVote === -1) story.downvotes += 1;
+
+    try {
+      const { error: voteError } = await window.supabaseClient
+        .from("votes")
+        .upsert({
+          story_id: storyId,
+          voter_profile_id: currentUser.id,
+          value: newVote,
+        });
+
+      if (voteError) {
+        console.error("Error saving vote:", voteError);
+        showError("Error saving vote.");
+        return;
+      }
+      
+      userVotesMap[storyId] = newVote;
+
+      const { error: storyError } = await window.supabaseClient
+        .from("stories")
+        .update({
+          upvotes: story.upvotes,
+          downvotes: story.downvotes,
+        })
+        .eq("id", storyId);
+
+      if (storyError) {
+        console.error("Error updating story score:", storyError);
+      }
+
+      renderStories();
+      renderProfileStatsAndAchievements();
+    } catch (e) {
+      console.error(e);
+      showError("Error voting. Please try again.");
+    }
+  }
+
+  // ---- Story modal & comments (Supabase) ----
 
   async function loadCommentsForStory(storyId) {
     const { data, error } = await window.supabaseClient
@@ -680,6 +858,7 @@
       }
     });
 
+    // NEW: Close modal with Escape key
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !modal.hidden) {
         modal.hidden = true;
@@ -687,10 +866,6 @@
       }
     });
   }
-
-  // --------------------------------------------------------------------
-  // 🔥 NEW FEATURE: Continue Thread Button (Option B placement)
-  // --------------------------------------------------------------------
 
   async function openStoryModal(storyId) {
     const story = getStoryById(storyId);
@@ -713,20 +888,16 @@
     const root = getRootOfStory(story);
     const isRoot = root.id === story.id;
 
-    // -------------------------
-    // Insert new button HERE ↓
-    // -------------------------
-
     container.innerHTML = `
-      <h3 id="storyModalTitle" class="story-modal-title">${escapeHtml(story.title)}</h3>
-
+      <h3 id="storyModalTitle" class="story-modal-title">${escapeHtml(
+        story.title
+      )}</h3>
       <div class="story-modal-meta">
         by <strong>${escapeHtml(story.author)}</strong>
         ${story.house ? ` of <em>${escapeHtml(story.house)}</em>` : ""}
         ${story.region ? ` • ${escapeHtml(story.region)}` : ""}
         ${story.createdAt ? ` • ${escapeHtml(formatDate(story.createdAt))}` : ""}
       </div>
-
       <div class="story-modal-body">${escapeHtml(story.content)}</div>
 
       <div class="story-modal-thread">
@@ -734,7 +905,9 @@
           ${
             isRoot
               ? "Root of this thread."
-              : `Part of thread beginning with <strong>${escapeHtml(root.title)}</strong>.`
+              : `Part of thread starting from <strong>${escapeHtml(
+                  root.title
+                )}</strong>.`
           }
           ${
             children.length
@@ -744,14 +917,8 @@
         </p>
       </div>
 
-      <!-- NEW BUTTON (Option B) -->
-      <button id="continueThreadBtn" class="btn btn-primary btn-sm" type="button" style="margin: 12px 0;">
-        Continue this thread
-      </button>
-
       <section class="story-modal-comments">
         <h4>Comments</h4>
-
         <ul class="comment-list" id="modalCommentList">
           ${
             comments.length
@@ -769,29 +936,15 @@
               : '<li class="muted">No comments yet. Be the first to speak.</li>'
           }
         </ul>
-
-        <label for="modalCommentInput" class="field-label">Add comment</label>
+        
+		<label class="field-label" for="modalCommentInput">Add comment</label>
         <textarea id="modalCommentInput" class="field" rows="3" placeholder="Leave a few words..."></textarea>
         <button id="modalCommentBtn" type="button" class="btn btn-primary">Post Comment</button>
-
       </section>
     `;
 
     modal.hidden = false;
 
-    // 🆕 Wire the Continue Thread button
-    const threadBtn = $("continueThreadBtn");
-    if (threadBtn) {
-      threadBtn.onclick = () => {
-        if (!requireLogin()) return;
-        currentParentStoryId = story.id;
-        updateSubmitParentInfo();
-        switchToTab("submit");
-        modal.hidden = true;
-      };
-    }
-
-    // Comment posting logic unchanged
     const commentBtn = $("modalCommentBtn");
     if (commentBtn) {
       commentBtn.addEventListener("click", async () => {
@@ -829,9 +982,8 @@
       });
     }
   }
-  // --------------------------------------------------------------------
-  // -------------------------  REALM MAP  ------------------------------
-  // --------------------------------------------------------------------
+
+  // ---- Realm map ----
 
   function renderRealmMap() {
     const grid = $("realmGrid");
@@ -839,13 +991,13 @@
     if (!grid || !filterEl) return;
 
     const regionStories = {};
+
     REGIONS.forEach((region) => {
       regionStories[region] = stories.filter((s) => s.region === region);
     });
 
     grid.innerHTML = REGIONS.map((region) => {
       const count = regionStories[region].length;
-
       const tagline =
         region === "The North"
           ? "Snow, wolves, and old gods."
@@ -939,7 +1091,6 @@
       const id = card.getAttribute("data-id");
       const story = getStoryById(id);
       if (!story) return;
-
       const viewBtn = card.querySelector(".js-view-story");
       if (viewBtn) {
         viewBtn.addEventListener("click", () => openStoryModal(story.id));
@@ -947,9 +1098,7 @@
     });
   }
 
-  // --------------------------------------------------------------------
-  // ---------------------------- RAVENS -------------------------------
-  // --------------------------------------------------------------------
+  // ---- Ravens (Supabase) ----
 
   async function loadRavensFromSupabase() {
     if (!currentUser) {
@@ -1010,7 +1159,7 @@
 
       $("ravenRecipient").value = "";
       $("ravenMessage").value = "";
-      showSuccess("Raven sent!");
+      showSuccess("Raven sent to the realm!");
 
       await loadRavensFromSupabase();
       renderRavens();
@@ -1083,9 +1232,7 @@
     }
   }
 
-  // --------------------------------------------------------------------
-  // ------------------------ INIT SEQUENCE ------------------------------
-  // --------------------------------------------------------------------
+  // ---- Post-login (really "post-init") ----
 
   async function initPostLogin() {
     await loadStoriesFromSupabase();
@@ -1100,9 +1247,7 @@
     renderRealmMap();
   }
 
-  // --------------------------------------------------------------------
-  // ---------------------- STARTUP ROUTINE ------------------------------
-  // --------------------------------------------------------------------
+  // ---- Startup (no forced redirect) ----
 
   document.addEventListener("DOMContentLoaded", async () => {
     enforceDomain();
@@ -1134,7 +1279,7 @@
       };
       applyHouseTheme(currentUser.house);
     } else {
-      currentUser = null;
+      currentUser = null; // guest mode
     }
 
     renderUserStatus();
@@ -1142,5 +1287,4 @@
 
     await initPostLogin();
   });
-
-})(); // END IIFE
+})();
