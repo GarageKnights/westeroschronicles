@@ -827,24 +827,25 @@ textarea.field {
   font-size: 0.85rem;
 }
 
-/* Map container sized like the real map (1536x2048 ≈ 3:4) */
+/* Map container – full-width book-style map */
 .realm-grid {
   position: relative;
-  max-width: 900px;
+  width: 100%;
+  max-width: 1200px;               /* cap so it doesn't get insane on huge screens */
   margin: 0 auto 18px;
-  aspect-ratio: 3 / 4; /* matches your map image ratio */
+  aspect-ratio: 3 / 4;             /* matches your book map */
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.7);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.95);
-  background-color: #c3d3c7; /* sea colour behind the map */
-  background-image: url("https://westeroschronicles.com/img/westeros-map-book.jpg"); /* <-- your file */
-  background-size: contain;  /* show the whole map */
+  background-color: #c3d3c7;
+  background-image: url("westeroschronicles.com/img/westeros-map-book.jpg"); /* keep this if it already works */
+  background-size: contain;        /* show whole map */
   background-position: center;
   background-repeat: no-repeat;
 }
 
-/* Optional: dark vignette so pins read clearly */
+/* Dark vignette so labels pop */
 .realm-grid::after {
   content: "";
   position: absolute;
@@ -854,51 +855,74 @@ textarea.field {
   pointer-events: none;
 }
 
+
 /* Region “pins” on top of the map */
+/* Region labels – book map style */
+
 .region-card {
   position: absolute;
-  width: 22%;
-  min-height: 64px;
-  padding: 6px 9px;
-  border-radius: 10px;
-  background:
-    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.2), transparent 60%),
-    linear-gradient(145deg, rgba(32, 22, 15, 0.96), rgba(10, 7, 5, 0.98));
-  border: 1px solid rgba(0, 0, 0, 0.95);
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 1),
-    0 0 0 1px rgba(0, 0, 0, 0.75);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(247, 236, 205, 0.78);  /* parchment chip */
+  border: 1px solid rgba(80, 52, 28, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
   cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease,
-    background 0.15s ease;
-  color: #f5e8cf;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   z-index: 2; /* above the map */
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
+/* Little marker dot like a printed atlas pin */
+.region-card::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3a2414;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Just the region name, no big card body */
+.region-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin: 0;
+  color: #322015;
+  white-space: nowrap;
+}
+
+/* Hide tagline and chapter count to keep it book-clean */
+.region-tagline,
+.region-count {
+  display: none;
+}
+
+/* Hover / active states */
+
 .region-card:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow:
-    0 14px 36px rgba(0, 0, 0, 1),
-    0 0 0 1px rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  background: rgba(252, 244, 215, 0.9);
+  border-color: rgba(120, 80, 40, 0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
 }
 
 .region-card.active {
-  transform: translateY(-2px) scale(1.04);
-  background:
-    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.28), transparent 60%),
-    linear-gradient(145deg, #5b2c1b, #a4632f);
-  border-color: rgba(255, 215, 160, 0.95);
+  transform: translateY(-1px) scale(1.03);
+  background: rgba(243, 221, 180, 0.95);
+  border-color: rgba(210, 168, 110, 1);
   box-shadow:
-    0 18px 42px rgba(0, 0, 0, 1),
+    0 3px 10px rgba(0, 0, 0, 1),
     0 0 0 1px rgba(255, 215, 160, 0.95);
 }
+
 
 .region-name {
   font-size: 0.88rem;
@@ -922,59 +946,53 @@ textarea.field {
 /* --- Pin positions roughly matched to your example map --- */
 /* tweak top/left percentages as needed once you see it in the browser */
 
+/* Pin positions on the map – tweak as needed */
+
 .region-card[data-region="Beyond the Wall"] {
   top: 5%;
-  left: 43%;
-  width: 26%;
+  left: 48%;
 }
 
 .region-card[data-region="The North"] {
   top: 20%;
-  left: 38%;
-  width: 30%;
+  left: 43%;
 }
 
 .region-card[data-region="The Vale"] {
-  top: 43%;
-  left: 63%;
-  width: 24%;
+  top: 44%;
+  left: 66%;
 }
 
 .region-card[data-region="The Riverlands"] {
   top: 42%;
-  left: 35%;
-  width: 26%;
+  left: 38%;
 }
 
 .region-card[data-region="The Westerlands"] {
   top: 52%;
-  left: 17%;
-  width: 24%;
+  left: 23%;
 }
 
 .region-card[data-region="The Crownlands"] {
   top: 51%;
-  left: 55%;
-  width: 26%;
+  left: 57%;
 }
 
 .region-card[data-region="The Reach"] {
   top: 64%;
-  left: 32%;
-  width: 28%;
+  left: 40%;
 }
 
 .region-card[data-region="The Stormlands"] {
   top: 63%;
-  left: 60%;
-  width: 24%;
+  left: 63%;
 }
 
 .region-card[data-region="Dorne"] {
-  top: 78%;
-  left: 37%;
-  width: 28%;
+  top: 79%;
+  left: 45%;
 }
+
 
 /* Small-screen fallback: stack regions under the map */
 @media (max-width: 680px) {
