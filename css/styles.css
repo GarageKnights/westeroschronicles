@@ -839,7 +839,7 @@ textarea.field {
   border: 1px solid rgba(0, 0, 0, 0.7);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.95);
   background-color: #c3d3c7;
-  background-image: url("westeroschronicles.com/img/westeros-map-book.jpg"); /* keep this if it already works */
+  background-image: url("https://westeroschronicles.com/img/westeros-map-book.jpg"); /* keep this if it already works */
   background-size: contain;        /* show whole map */
   background-position: center;
   background-repeat: no-repeat;
