@@ -572,7 +572,10 @@ textarea.field {
   line-height: 1.5;
   white-space: pre-wrap;
   margin-bottom: 18px;
+  max-height: 60vh;        /* limit the text area */
+  overflow-y: auto;        /* scroll just the story text */
 }
+
 
 .story-modal-comments h4 {
   margin-top: 0;
@@ -870,4 +873,21 @@ textarea.field {
     flex-wrap: nowrap;
     overflow-x: auto;
   }
+}
+/* Ensure long story modals are scrollable */
+.overlay {
+  align-items: flex-start;      /* Don't vertically center huge content */
+  padding: 24px 12px;           /* Some breathing room around the box */
+  overflow-y: auto;             /* Let the overlay itself scroll if needed */
+}
+
+.overlay-content,
+.overlay-content-lg {
+  max-height: 90vh;             /* Never taller than the viewport */
+  overflow-y: auto;             /* Scroll inside the modal when content is long */
+}
+#storyContent {
+  min-height: 300px;
+  max-height: 70vh;
+  overflow-y: auto;
 }
