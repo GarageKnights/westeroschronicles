@@ -915,6 +915,182 @@ textarea.field {
 .achievement-item span {
   color: var(--accent);
 }
+/* House-themed profile enhancements */
+
+/* Turn the profile card into a banner + crest feel */
+.profile-card {
+  position: relative;
+  overflow: hidden;
+  align-items: flex-start;
+  padding-top: 20px;
+}
+
+/* House-colored banner wash in the background */
+.profile-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom right,
+      rgba(0, 0, 0, 0.85) 0%,
+      rgba(0, 0, 0, 0.8) 30%,
+      var(--accent-soft) 85%
+    );
+  opacity: 0.85;
+  z-index: 0;
+}
+
+/* Subtle light highlight across the top of the card */
+.profile-card::after {
+  content: "";
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: 0;
+  height: 42px;
+  background: radial-gradient(
+    circle at top,
+    rgba(255, 255, 255, 0.16),
+    transparent 70%
+  );
+  opacity: 0.8;
+  z-index: 0;
+}
+
+/* Ensure inner content sits above the banner */
+.profile-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Layout tweak: avatar + main stacked nicely */
+.profile-avatar {
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.9),
+    0 0 18px rgba(0, 0, 0, 0.8),
+    0 0 12px rgba(0, 0, 0, 0.9);
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.95));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* House-colored inner ring on the avatar (crest look) */
+.profile-avatar::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  opacity: 0.75;
+}
+
+/* Name + house styling */
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-name {
+  font-size: 1.1rem;
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* House line becomes a pill-shaped ribbon */
+.profile-house {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #0f0804;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.65),
+    var(--accent-soft),
+    var(--accent)
+  );
+  padding: 2px 10px;
+  border-radius: 999px;
+  display: inline-block;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.7);
+}
+
+/* Optional extra line if you ever add house words */
+.profile-words {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* Slightly different vibes based on house (all still use accent vars) */
+
+body.house-Stark .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 55%),
+    linear-gradient(to bottom right, #0b1114 0%, #18212a 40%, var(--accent-soft) 95%);
+}
+
+body.house-Lannister .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.09), transparent 55%),
+    linear-gradient(to bottom right, #2a0505 0%, #3a1010 40%, var(--accent-soft) 95%);
+}
+
+body.house-Targaryen .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 55%),
+    linear-gradient(to bottom right, #050505 0%, #210000 35%, var(--accent-soft) 95%);
+}
+
+body.house-Baratheon .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.1), transparent 55%),
+    linear-gradient(to bottom right, #1c1605 0%, #2b2010 40%, var(--accent-soft) 95%);
+}
+
+body.house-Greyjoy .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 55%),
+    linear-gradient(to bottom right, #02060b 0%, #071017 40%, var(--accent-soft) 95%);
+}
+
+body.house-Tyrell .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 55%),
+    linear-gradient(to bottom right, #071107 0%, #102110 40%, var(--accent-soft) 95%);
+}
+
+body.house-Martell .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 55%),
+    linear-gradient(to bottom right, #2b1304 0%, #3b200c 40%, var(--accent-soft) 95%);
+}
+
+body.house-Tully .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 55%),
+    linear-gradient(to bottom right, #051121 0%, #0e1f36 40%, var(--accent-soft) 95%);
+}
+
+body.house-Arryn .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.14), transparent 55%),
+    linear-gradient(to bottom right, #050815 0%, #101b33 40%, var(--accent-soft) 95%);
+}
+
+/* Night's Watch / Free Folk get a colder, harsher look */
+body.house-Night\\'s\\ Watch .profile-card::before,
+body.house-Night\'s\ Watch .profile-card::before,
+body[class*="Night"] .profile-card::before {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.16), transparent 60%),
+    linear-gradient(to bottom right, #02040a 0%, #050a12 40%, var(--accent-soft) 95%);
+}
 
 /* Toggle */
 
