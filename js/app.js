@@ -982,6 +982,15 @@
       });
     }
   }
+  function setActiveRegion(region) {
+    const grid = $("realmGrid");
+    if (!grid) return;
+
+    Array.from(grid.querySelectorAll(".region-card")).forEach((card) => {
+      const cardRegion = card.getAttribute("data-region");
+      card.classList.toggle("active", !!region && cardRegion === region);
+    });
+  }
 
   // ---- Realm map ----
 
@@ -991,7 +1000,6 @@
     if (!grid || !filterEl) return;
 
     const regionStories = {};
-
     REGIONS.forEach((region) => {
       regionStories[region] = stories.filter((s) => s.region === region);
     });
@@ -1028,19 +1036,27 @@
       `;
     }).join("");
 
+    // Clicking a region = choose that region in the dropdown + show stories + highlight
     Array.from(grid.querySelectorAll(".region-card")).forEach((card) => {
       const region = card.getAttribute("data-region");
       card.addEventListener("click", () => {
         filterEl.value = region;
         renderRealmStories();
+        setActiveRegion(region);
       });
     });
 
-    filterEl.removeEventListener("change", renderRealmStories);
-    filterEl.addEventListener("change", renderRealmStories);
+    // Dropdown also controls the active highlight
+    filterEl.onchange = () => {
+      renderRealmStories();
+      setActiveRegion(filterEl.value || "");
+    };
 
+    // Initial render
     renderRealmStories();
+    setActiveRegion(filterEl.value || "");
   }
+
 
   function renderRealmStories() {
     const regionFilter = $("mapFilter")?.value || "";

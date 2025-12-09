@@ -811,49 +811,208 @@ textarea.field {
 
 /* Realm map */
 
+/* Realm map – interactive world map */
+
 .realm-controls {
-  margin-bottom: 10px;
-}
-
-.realm-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
-.region-card {
+.realm-controls .field-label {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Map container */
+.realm-grid {
   position: relative;
-  background: radial-gradient(circle at top, #2a1d14 0, #130c08 80%);
-  border-radius: 10px;
-  border: 1px solid var(--border-strong);
-  padding: 10px;
+  max-width: 900px;
+  margin: 0 auto 18px;
+  aspect-ratio: 3 / 4; /* Tall map */
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.9);
+  background:
+    radial-gradient(circle at 20% 0%, #243749 0, transparent 55%),
+    radial-gradient(circle at 80% 100%, #0d1724 0, transparent 55%),
+    linear-gradient(to bottom, #050810 0%, #05080f 40%, #050b12 100%);
+}
+
+/* Landmass */
+.realm-grid::before {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 60% 40% 55% 50% / 50% 60% 45% 55%;
+  background:
+    radial-gradient(circle at 30% 15%, #f5e3b5 0, transparent 40%),
+    radial-gradient(circle at 70% 10%, #f2ddb0 0, transparent 35%),
+    radial-gradient(circle at 20% 80%, #e7cf9a 0, transparent 45%),
+    radial-gradient(circle at 80% 75%, #e2c78e 0, transparent 45%),
+    linear-gradient(145deg, #d3b67a, #b4965f 50%, #ceb275 100%);
+  box-shadow:
+    0 0 40px rgba(0, 0, 0, 0.9),
+    0 0 80px rgba(0, 0, 0, 1);
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+/* Subtle coast glow */
+.realm-grid::after {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.8) inset;
+  pointer-events: none;
+}
+
+/* Common region tile styling */
+.region-card {
+  position: absolute;
+  width: 22%;
+  min-height: 70px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    linear-gradient(145deg, rgba(33, 23, 13, 0.9), rgba(16, 10, 6, 0.98));
+  border: 1px solid rgba(0, 0, 0, 0.9);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.7);
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
-  transition: transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+  color: #f5e8cf;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
+/* Hover + active highlight */
 .region-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.9);
-  border-color: var(--accent-soft);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 1),
+    0 0 0 1px rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
+.region-card.active {
+  transform: translateY(-2px) scale(1.03);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.25), transparent 60%),
+    linear-gradient(145deg, #5b2c1b, #a4632f);
+  border-color: rgba(255, 215, 160, 0.9);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 1),
+    0 0 0 1px rgba(255, 215, 160, 0.9);
+}
+
+/* Region name + tagline text */
 .region-name {
+  font-size: 0.9rem;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   margin: 0 0 2px;
 }
 
 .region-tagline {
   font-size: 0.8rem;
-  color: var(--text-muted);
-  margin: 0 0 6px;
+  color: rgba(245, 232, 207, 0.8);
+  margin: 0 0 4px;
 }
 
 .region-count {
-  font-size: 0.8rem;
-  color: var(--accent);
+  font-size: 0.75rem;
+  color: rgba(255, 222, 173, 0.95);
 }
+
+/* --- Position each region roughly where it belongs on the map --- */
+
+.region-card[data-region="Beyond the Wall"] {
+  top: 5%;
+  left: 34%;
+  width: 28%;
+  border-radius: 40% 40% 30% 30% / 60% 60% 40% 40%;
+}
+
+.region-card[data-region="The North"] {
+  top: 20%;
+  left: 28%;
+  width: 34%;
+  border-radius: 35% 45% 35% 40% / 40% 50% 40% 50%;
+}
+
+.region-card[data-region="The Vale"] {
+  top: 36%;
+  left: 63%;
+  width: 22%;
+  border-radius: 35% 45% 35% 40% / 40% 50% 40% 50%;
+}
+
+.region-card[data-region="The Riverlands"] {
+  top: 37%;
+  left: 30%;
+  width: 28%;
+}
+
+.region-card[data-region="The Westerlands"] {
+  top: 45%;
+  left: 12%;
+  width: 24%;
+}
+
+.region-card[data-region="The Crownlands"] {
+  top: 46%;
+  left: 58%;
+  width: 24%;
+}
+
+.region-card[data-region="The Reach"] {
+  top: 56%;
+  left: 28%;
+  width: 30%;
+}
+
+.region-card[data-region="The Stormlands"] {
+  top: 59%;
+  left: 60%;
+  width: 24%;
+}
+
+.region-card[data-region="Dorne"] {
+  top: 72%;
+  left: 36%;
+  width: 30%;
+  border-radius: 45% 45% 50% 50% / 40% 40% 60% 60%;
+}
+
+/* Small-screen fallback: stack them if the map gets too narrow */
+@media (max-width: 680px) {
+  .realm-grid {
+    aspect-ratio: auto;
+    min-height: 480px;
+  }
+
+  .region-card {
+    position: static;
+    width: auto;
+    margin: 6px 8px;
+  }
+}
+
 
 /* Profile */
 
