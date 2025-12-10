@@ -860,33 +860,19 @@ textarea.field {
 /* Region labels – book map style */
 
 .region-card {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  background: rgba(255, 248, 236, 0.75);
+  border: 1px solid rgba(80, 52, 28, 0.6);
   border-radius: 999px;
-  background: rgba(247, 236, 205, 0.78);  /* parchment chip */
-  border: 1px solid rgba(80, 52, 28, 0.85);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
-  cursor: pointer;
-  z-index: 2; /* above the map */
-  transition:
-    transform 0.1s ease,
-    box-shadow 0.15s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
-/* Little marker dot like a printed atlas pin */
 .region-card::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #3a2414;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  display: none; /* turn off the dot pin for clean book labels */
 }
+
 
 /* Just the region name, no big card body */
 .region-name {
@@ -948,50 +934,69 @@ textarea.field {
 
 /* Pin positions on the map – tweak as needed */
 
+/* Beyond the Wall — place above the Wall ridge */
 .region-card[data-region="Beyond the Wall"] {
-  top: 5%;
-  left: 48%;
+  top: 6.5%;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
+/* The North — centered around Winterfell */
 .region-card[data-region="The North"] {
-  top: 20%;
-  left: 43%;
+  top: 27%;
+  left: 47%;
+  transform: translateX(-50%);
 }
 
+/* The Riverlands — between Riverrun and Harrenhal */
+.region-card[data-region="The Riverlands"] {
+  top: 44%;
+  left: 40%;
+  transform: translateX(-50%);
+}
+
+/* The Vale — right of The Eyrie */
 .region-card[data-region="The Vale"] {
   top: 44%;
-  left: 66%;
+  left: 68%;
+  transform: translateX(-50%);
 }
 
-.region-card[data-region="The Riverlands"] {
-  top: 42%;
-  left: 38%;
-}
-
+/* The Westerlands — over Casterly Rock area */
 .region-card[data-region="The Westerlands"] {
-  top: 52%;
-  left: 23%;
+  top: 55%;
+  left: 22%;
+  transform: translateX(-50%);
 }
 
+/* The Crownlands — between KL and Dragonstone */
 .region-card[data-region="The Crownlands"] {
-  top: 51%;
+  top: 50%;
   left: 57%;
+  transform: translateX(-50%);
 }
 
+/* The Reach — centered between Highgarden and Bitterbridge */
 .region-card[data-region="The Reach"] {
-  top: 64%;
-  left: 40%;
+  top: 64.5%;
+  left: 43%;
+  transform: translateX(-50%);
 }
 
+/* The Stormlands — over Storm's End */
 .region-card[data-region="The Stormlands"] {
   top: 63%;
-  left: 63%;
+  left: 64%;
+  transform: translateX(-50%);
 }
 
+/* Dorne — center above Sunspear & Sandstone */
 .region-card[data-region="Dorne"] {
-  top: 79%;
-  left: 45%;
+  top: 80%;   /* slightly lower based on screenshot */
+  left: 47%;
+  transform: translateX(-50%);
 }
+
 
 
 /* Small-screen fallback: stack regions under the map */
