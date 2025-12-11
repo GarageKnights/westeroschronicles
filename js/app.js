@@ -1030,8 +1030,6 @@
       return `
         <article class="region-card" data-region="${region}">
           <h3 class="region-name">${region}</h3>
-          <p class="region-tagline">${tagline}</p>
-          <p class="region-count">${count} chapter${count === 1 ? "" : "s"}</p>
         </article>
       `;
     }).join("");
