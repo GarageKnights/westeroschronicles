@@ -910,25 +910,6 @@ textarea.field {
 }
 
 
-.region-name {
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin: 0 0 2px;
-}
-
-.region-tagline {
-  font-size: 0.78rem;
-  color: rgba(245, 232, 207, 0.8);
-  margin: 0 0 2px;
-}
-
-.region-count {
-  font-size: 0.72rem;
-  color: rgba(255, 222, 173, 0.95);
-}
-
 /* --- Pin positions roughly matched to your example map --- */
 /* tweak top/left percentages as needed once you see it in the browser */
 
