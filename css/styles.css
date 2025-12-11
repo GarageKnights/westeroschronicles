@@ -887,34 +887,100 @@ textarea.field {
 
 .region-card {
   position: absolute;
-  background: rgba(255, 248, 236, 0.75);
-  border: 1px solid rgba(80, 52, 28, 0.6);
+  background: rgba(255, 248, 236, 0.92);
+  border: 1px solid rgba(80, 52, 28, 0.85);
   border-radius: 999px;
-  padding: 3px 8px;
-  font-size: 0.75rem;
+  padding: 8px 14px;
+  font-size: 0.95rem;
   letter-spacing: 0.08em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  box-shadow: 
+    0 3px 10px rgba(0,0,0,0.7), 
+    0 0 0 1px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.6);
 }
 
 .region-card::before {
-  display: none; /* turn off the dot pin for clean book labels */
+  display: none;
 }
 
+.region-card:hover {
+  transform: translateX(-50%) scale(1.15);
+  background: rgba(255, 252, 245, 1);
+  box-shadow: 
+    0 6px 20px rgba(0,0,0,0.9), 
+    0 0 30px rgba(244, 216, 138, 0.6),
+    0 0 0 3px rgba(244, 216, 138, 0.8);
+  z-index: 10;
+}
 
-/* Just the region name, no big card body */
+.region-card:hover::after {
+  content: attr(data-tagline);
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 20, 16, 0.97);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.9);
+  z-index: 100;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  text-transform: none;
+  animation: tooltipFadeIn 0.25s ease;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.region-card.active {
+  background: rgba(244, 216, 138, 0.95);
+  border-color: rgba(147, 114, 69, 1);
+  box-shadow: 
+    0 6px 20px rgba(0,0,0,0.95), 
+    0 0 35px rgba(244, 216, 138, 0.8),
+    0 0 0 3px rgba(244, 216, 138, 1);
+  transform: translateX(-50%) scale(1.2);
+  z-index: 10;
+}
+
 .region-name {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
   margin: 0;
-  color: #322015;
+  color: #2d1e0f;
   white-space: nowrap;
 }
 
-/* Hide tagline and chapter count to keep it book-clean */
-.region-tagline,
 .region-count {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #5a3b24;
+  font-weight: 600;
+  margin-left: 6px;
+  background: rgba(0,0,0,0.15);
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.region-tagline {
   display: none;
 }
 
