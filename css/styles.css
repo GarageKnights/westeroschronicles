@@ -860,6 +860,7 @@ textarea.field {
 /* Region labels – book map style */
 
 .region-card {
+  position: absolute
   background: rgba(255, 248, 236, 0.75);
   border: 1px solid rgba(80, 52, 28, 0.6);
   border-radius: 999px;
@@ -891,23 +892,6 @@ textarea.field {
   display: none;
 }
 
-/* Hover / active states */
-
-.region-card:hover {
-  transform: translateY(-1px);
-  background: rgba(252, 244, 215, 0.9);
-  border-color: rgba(120, 80, 40, 0.95);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-}
-
-.region-card.active {
-  transform: translateY(-1px) scale(1.03);
-  background: rgba(243, 221, 180, 0.95);
-  border-color: rgba(210, 168, 110, 1);
-  box-shadow:
-    0 3px 10px rgba(0, 0, 0, 1),
-    0 0 0 1px rgba(255, 215, 160, 0.95);
-}
 
 
 /* --- Pin positions roughly matched to your example map --- */
