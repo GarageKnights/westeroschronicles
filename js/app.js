@@ -1030,8 +1030,8 @@
           : region === "The Iron Islands"
           ? "The Ironborn hold fast to the Old Way."
           : region === "Essos"
-          ? "The vast continent across the Narrow Sea.";
-		  
+          ? "The vast continent across the Narrow Sea."
+		  : "";
       return `
         <article class="region-card" data-region="${region}" data-tagline="${escapeHtml(tagline)}">
           <h3 class="region-name">${region}<span class="region-count">(${count})</span></h3>
