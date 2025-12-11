@@ -1028,8 +1028,8 @@
           : "Fertile land and quiet schemes.";
 
       return `
-        <article class="region-card" data-region="${region}">
-          <h3 class="region-name">${region}</h3>
+        <article class="region-card" data-region="${region}" data-tagline="${escapeHtml(tagline)}">
+          <h3 class="region-name">${region}<span class="region-count">(${count})</span></h3>
         </article>
       `;
     }).join("");
