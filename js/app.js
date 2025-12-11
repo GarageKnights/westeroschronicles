@@ -13,6 +13,8 @@
     "The Stormlands",
     "The Crownlands",
     "Beyond the Wall",
+	"The Iron Islands",
+	"Essos",
   ];
 
   const SETTINGS_PREFIX = "wc_settings_"; // + username
@@ -1025,8 +1027,11 @@
           ? "Rivers run red with history."
           : region === "The Stormlands"
           ? "Thunder and stubborn kings."
-          : "Fertile land and quiet schemes.";
-
+          : region === "The Iron Islands"
+          ? "The Ironborn hold fast to the Old Way."
+          : region === "Essos"
+          ? "The vast continent across the Narrow Sea.";
+		  
       return `
         <article class="region-card" data-region="${region}" data-tagline="${escapeHtml(tagline)}">
           <h3 class="region-name">${region}<span class="region-count">(${count})</span></h3>

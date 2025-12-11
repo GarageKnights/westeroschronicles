@@ -1053,6 +1053,18 @@ textarea.field {
   left: 47%;
   transform: translateX(-50%);
 }
+/* The Iron Islands */
+.region-card[data-region="The Iron Islands"] {
+  top: 48%;
+  left: 27%;
+  transform: translateX(-50%);
+}
+/* Essos */
+.region-card[data-region="Essos"] {
+  top: 45%;
+  left: 87%;
+  transform: translateX(-50%);
+}
 
 
 
