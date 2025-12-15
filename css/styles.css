@@ -499,20 +499,16 @@ textarea.field {
     0 0 0 1px rgba(0, 0, 0, 0.3);
   color: #2a1d10;
   overflow: visible;
- /* Burned parchment torn-edge mask */
-.story-card {
-  -webkit-mask-image: url("https://westeroschronicles.com/img/burnt-mask.png");
-  mask-image: url("https://westeroschronicles.com/img/burnt-mask.png");
+
+  /* Burned parchment torn-edge mask (SVG version) */
+  -webkit-mask-image: url("https://westeroschronicles.com/img/burnt-mask.svg");
+  mask-image: url("https://westeroschronicles.com/img/burnt-mask.svg");
+  mask-mode: alpha;
   -webkit-mask-size: cover;
   mask-size: cover;
-  -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  -webkit-mask-mode: luminance;
-  mask-mode: luminance;
 }
 
-  );
-}
 
 /* Torn, irregular edge illusion */
 .story-card::before {
@@ -528,6 +524,7 @@ textarea.field {
   opacity: 0.55;
   pointer-events: none;
 }
+
 
 /* Light fold / highlight across the top */
 .story-card::after {
@@ -972,85 +969,85 @@ textarea.field {
 
 
 
-/* --- Pin positions roughly matched to your example map --- */
-/* tweak top/left percentages as needed once you see it in the browser */
+/* === Refined pin positions aligned to book map === */
 
-/* Pin positions on the map – tweak as needed */
-
-/* Beyond the Wall — place above the Wall ridge */
+/* Beyond the Wall */
 .region-card[data-region="Beyond the Wall"] {
-  top: 6.5%;
+  top: 7%;
   left: 50%;
   transform: translateX(-50%);
 }
 
-/* The North — centered around Winterfell */
+/* The North (Winterfell basin) */
 .region-card[data-region="The North"] {
-  top: 27%;
-  left: 47%;
+  top: 26%;
+  left: 48%;
   transform: translateX(-50%);
 }
 
-/* The Riverlands — between Riverrun and Harrenhal */
+/* The Riverlands (Riverrun / Trident) */
 .region-card[data-region="The Riverlands"] {
-  top: 44%;
-  left: 40%;
+  top: 45%;
+  left: 41%;
   transform: translateX(-50%);
 }
 
-/* The Vale — right of The Eyrie */
+/* The Vale (Eyrie / Mountains of the Moon) */
 .region-card[data-region="The Vale"] {
   top: 44%;
-  left: 68%;
+  left: 69%;
   transform: translateX(-50%);
 }
 
-/* The Westerlands — over Casterly Rock area */
+/* The Iron Islands */
+.region-card[data-region="The Iron Islands"] {
+  top: 48%;
+  left: 25%;
+  transform: translateX(-50%);
+}
+
+/* The Westerlands (Casterly Rock coast) */
 .region-card[data-region="The Westerlands"] {
-  top: 55%;
+  top: 56%;
   left: 22%;
   transform: translateX(-50%);
 }
 
-/* The Crownlands — between KL and Dragonstone */
+/* The Crownlands (King’s Landing / Blackwater) */
 .region-card[data-region="The Crownlands"] {
   top: 50%;
   left: 57%;
   transform: translateX(-50%);
 }
 
-/* The Reach — centered between Highgarden and Bitterbridge */
+/* The Reach (Highgarden) */
 .region-card[data-region="The Reach"] {
-  top: 64.5%;
-  left: 43%;
+  top: 65%;
+  left: 42%;
   transform: translateX(-50%);
 }
 
-/* The Stormlands — over Storm's End */
+/* The Stormlands (Storm’s End) */
 .region-card[data-region="The Stormlands"] {
-  top: 63%;
-  left: 64%;
+  top: 64%;
+  left: 63%;
   transform: translateX(-50%);
 }
 
-/* Dorne — center above Sunspear & Sandstone */
+/* Dorne */
 .region-card[data-region="Dorne"] {
-  top: 80%;   /* slightly lower based on screenshot */
+  top: 81%;
   left: 47%;
   transform: translateX(-50%);
 }
-/* The Iron Islands */
-.region-card[data-region="The Iron Islands"] {
-  top: 48%;
-  left: 27%;
-  transform: translateX(-50%);
-}
+
 /* Essos */
 .region-card[data-region="Essos"] {
   top: 45%;
-  left: 87%;
+  left: 88%;
   transform: translateX(-50%);
 }
+
 
 
 
