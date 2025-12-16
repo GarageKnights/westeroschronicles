@@ -517,7 +517,17 @@ textarea.field {
 
 /* Torn, irregular edge illusion */
 .story-card::before {
-  display: none;
+  content: "";
+  position: absolute;
+  inset: -6px;
+  background:
+    radial-gradient(circle at 0 0, rgba(0, 0, 0, 0.25) 0, transparent 55%),
+    radial-gradient(circle at 100% 0, rgba(0, 0, 0, 0.2) 0, transparent 55%),
+    radial-gradient(circle at 0 100%, rgba(0, 0, 0, 0.2) 0, transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(0, 0, 0, 0.3) 0, transparent 55%);
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 /* Light fold / highlight across the top */
