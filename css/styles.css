@@ -499,19 +499,6 @@ textarea.field {
     0 0 0 1px rgba(0, 0, 0, 0.3);
   color: #2a1d10;
   overflow: visible;
-
-  /* Burned parchment torn-edge mask */
-  -webkit-mask-image: url("../img/burnt-mask.png");
-  -webkit-mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  -webkit-mask-mode: luminance;
-
-  mask-image: url("../img/burnt-mask.png");
-  mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  mask-mode: luminance;
 }
 
 
