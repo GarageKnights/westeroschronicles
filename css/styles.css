@@ -499,16 +499,23 @@ textarea.field {
     0 0 0 1px rgba(0, 0, 0, 0.3);
   color: #2a1d10;
   overflow: visible;
-
-  /* Burned parchment torn-edge mask */
-  -webkit-mask-image: url("https://westeroschronicles.com/img/burnt-mask.png");
-  mask-image: url("https://westeroschronicles.com/img/burnt-mask.png");
-  -webkit-mask-size: cover;
-  mask-size: cover;
+ /* Burned parchment torn-edge mask */
+.story-card{
+  -webkit-mask-image: url("../img/burnt-mask.png");
+  -webkit-mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
   -webkit-mask-mode: luminance;
+
+  mask-image: url("../img/burnt-mask-textsafe.png");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  mask-position: center;
   mask-mode: luminance;
+}
+
+
+  );
 }
 
 /* Torn, irregular edge illusion */
@@ -525,7 +532,6 @@ textarea.field {
   opacity: 0.55;
   pointer-events: none;
 }
-
 
 /* Light fold / highlight across the top */
 .story-card::after {
