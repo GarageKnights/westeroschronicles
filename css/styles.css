@@ -981,7 +981,7 @@ textarea.field {
 
 /* The Riverlands — between Riverrun and Harrenhal */
 .region-card[data-region="The Riverlands"] {
-  top: 48%;
+  top: 52%;
   left: 40%;
   transform: translateX(-50%);
 }
@@ -995,7 +995,7 @@ textarea.field {
 
 /* The Westerlands — over Casterly Rock area */
 .region-card[data-region="The Westerlands"] {
-  top: 59%;
+  top: 66%;
   left: 22%;
   transform: translateX(-50%);
 }
@@ -1009,27 +1009,27 @@ textarea.field {
 
 /* The Reach — centered between Highgarden and Bitterbridge */
 .region-card[data-region="The Reach"] {
-  top: 68%;
+  top: 73%;
   left: 43%;
   transform: translateX(-50%);
 }
 
 /* The Stormlands — over Storm's End */
 .region-card[data-region="The Stormlands"] {
-  top: 67%;
+  top: 70%;
   left: 64%;
   transform: translateX(-50%);
 }
 
 /* Dorne — center above Sunspear & Sandstone */
 .region-card[data-region="Dorne"] {
-  top: 83%;   /* slightly lower based on screenshot */
+  top: 90%;   /* slightly lower based on screenshot */
   left: 47%;
   transform: translateX(-50%);
 }
 /* The Iron Islands */
 .region-card[data-region="The Iron Islands"] {
-  top: 52%;
+  top: 57%;
   left: 27%;
   transform: translateX(-50%);
 }
