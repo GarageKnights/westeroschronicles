@@ -244,7 +244,7 @@ body {
   backdrop-filter: blur(10px);
   position: sticky;
   top: 70px;
-  z-index: 2;
+  z-index: 999;
 }
 
 .tabBtn {
