@@ -196,9 +196,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  position: sticky;
-  top: 0;
-  z-index: 3;
+  position: relative;
 }
 
 .site-title-block {
@@ -241,13 +239,11 @@ body {
   display: flex;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(12, 7, 5, 0.92);
+  position: sticky;
+  top: 0;
+  z-index: 100;
   backdrop-filter: blur(10px);
   position: sticky;
-  top: 70px;
-  z-index: 2;
-}
-
-.tabBtn {
   flex: 1;
   background: none;
   border: none;
@@ -1612,4 +1608,14 @@ body[class*="Night"] .profile-card::before {
     padding: 4px 10px;
     border-radius: 12px;
   }
+}
+
+
+/* Tab intro text */
+.tab-intro {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 8px 0 20px 0;
+  line-height: 1.6;
+  max-width: 700px;
 }
