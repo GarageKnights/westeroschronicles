@@ -967,75 +967,75 @@ textarea.field {
 
 /* Beyond the Wall — place above the Wall ridge */
 .region-card[data-region="Beyond the Wall"] {
-  top: 6.5%;
+  top: 10%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 /* The North — centered around Winterfell */
 .region-card[data-region="The North"] {
-  top: 27%;
+  top: 31%;
   left: 47%;
   transform: translateX(-50%);
 }
 
 /* The Riverlands — between Riverrun and Harrenhal */
 .region-card[data-region="The Riverlands"] {
-  top: 44%;
+  top: 48%;
   left: 40%;
   transform: translateX(-50%);
 }
 
 /* The Vale — right of The Eyrie */
 .region-card[data-region="The Vale"] {
-  top: 44%;
+  top: 48%;
   left: 68%;
   transform: translateX(-50%);
 }
 
 /* The Westerlands — over Casterly Rock area */
 .region-card[data-region="The Westerlands"] {
-  top: 55%;
+  top: 59%;
   left: 22%;
   transform: translateX(-50%);
 }
 
 /* The Crownlands — between KL and Dragonstone */
 .region-card[data-region="The Crownlands"] {
-  top: 50%;
+  top: 54%;
   left: 57%;
   transform: translateX(-50%);
 }
 
 /* The Reach — centered between Highgarden and Bitterbridge */
 .region-card[data-region="The Reach"] {
-  top: 64.5%;
+  top: 68%;
   left: 43%;
   transform: translateX(-50%);
 }
 
 /* The Stormlands — over Storm's End */
 .region-card[data-region="The Stormlands"] {
-  top: 63%;
+  top: 67%;
   left: 64%;
   transform: translateX(-50%);
 }
 
 /* Dorne — center above Sunspear & Sandstone */
 .region-card[data-region="Dorne"] {
-  top: 80%;   /* slightly lower based on screenshot */
+  top: 83%;   /* slightly lower based on screenshot */
   left: 47%;
   transform: translateX(-50%);
 }
 /* The Iron Islands */
 .region-card[data-region="The Iron Islands"] {
-  top: 48%;
+  top: 52%;
   left: 27%;
   transform: translateX(-50%);
 }
 /* Essos */
 .region-card[data-region="Essos"] {
-  top: 45%;
+  top: 49%;
   left: 87%;
   transform: translateX(-50%);
 }
