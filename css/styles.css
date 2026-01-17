@@ -988,7 +988,7 @@ textarea.field {
 
 /* The Vale — right of The Eyrie */
 .region-card[data-region="The Vale"] {
-  top: 48%;
+  top: 42%;
   left: 68%;
   transform: translateX(-50%);
 }
@@ -1002,7 +1002,7 @@ textarea.field {
 
 /* The Crownlands — between KL and Dragonstone */
 .region-card[data-region="The Crownlands"] {
-  top: 54%;
+  top: 60%;
   left: 57%;
   transform: translateX(-50%);
 }
@@ -1016,8 +1016,8 @@ textarea.field {
 
 /* The Stormlands — over Storm's End */
 .region-card[data-region="The Stormlands"] {
-  top: 70%;
-  left: 64%;
+  top: 76%;
+  left: 58%;
   transform: translateX(-50%);
 }
 
@@ -1035,7 +1035,7 @@ textarea.field {
 }
 /* Essos */
 .region-card[data-region="Essos"] {
-  top: 49%;
+  top: 55%;
   left: 87%;
   transform: translateX(-50%);
 }
