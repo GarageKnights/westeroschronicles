@@ -1,20 +1,43 @@
 // js/auth.js
 
 // 1. Configure Supabase client
-// Get these from your Supabase project settings:
-// - Project URL (API -> "Project URL")
-// - anon public key (API -> "anon public")
-const SUPABASE_URL = "https://zzclyitigpxoqbhzuzrs.supabase.co"; // keep if this is your real URL
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6Y2x5aXRpZ3B4b3FiaHp1enJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MDczMTIsImV4cCI6MjA4MDE4MzMxMn0.LAyR7XCgkUPBd00KAPELmq3XQcwDiMsHo8UU94jBQOY";       // NO "..." anywhere
+const SUPABASE_URL = "https://zzclyitigpxoqbhzuzrs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6Y2x5aXRpZ3B4b3FiaHp1enJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MDczMTIsImV4cCI6MjA4MDE4MzMxMn0.LAyR7XCgkUPBd00KAPELmq3XQcwDiMsHo8UU94jBQOY";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Wait for Supabase library to load, then create client
+let supabaseClient = null;
+
+function initSupabase() {
+  try {
+    if (window.supabase && window.supabase.createClient) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      window.supabaseClient = supabaseClient;
+      console.log("Supabase client initialized successfully");
+    } else {
+      console.error("Supabase library not available yet, retrying...");
+      // Retry after a short delay
+      setTimeout(initSupabase, 100);
+    }
+  } catch (err) {
+    console.error("Error initializing Supabase client:", err);
+  }
+}
+
+// Try to initialize immediately
+initSupabase();
 
 // 2. Helper: require the user to be logged in (for index.html)
 async function requireAuthOrRedirect() {
+  if (!supabaseClient) {
+    console.error("Supabase client not initialized");
+    window.location.href = "login.html";
+    return null;
+  }
+  
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser();
+  } = await supabaseClient.auth.getUser();
 
   if (error || !user) {
     window.location.href = "login.html";
@@ -26,14 +49,19 @@ async function requireAuthOrRedirect() {
 
 // 3. Helper: load the current profile (for app UI)
 async function getCurrentProfile() {
+  if (!supabaseClient) {
+    console.error("Supabase client not initialized");
+    return null;
+  }
+  
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = await supabaseClient.auth.getUser();
 
   if (userError || !user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("profiles")
     .select("*")
     .eq("id", user.id)
@@ -49,12 +77,13 @@ async function getCurrentProfile() {
 
 // 4. Logout helper
 async function logoutAndRedirect() {
-  await supabase.auth.signOut();
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
   window.location.href = "login.html";
 }
 
 // Make helpers available globally
-window.supabaseClient = supabase;
 window.requireAuthOrRedirect = requireAuthOrRedirect;
 window.getCurrentProfile = getCurrentProfile;
 window.logoutAndRedirect = logoutAndRedirect;
