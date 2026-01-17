@@ -1005,6 +1005,17 @@
   }
 
 
+
+  function setActiveMobileRegion(region) {
+    const mobileList = document.querySelector(".realm-mobile-list");
+    if (!mobileList) return;
+
+    Array.from(mobileList.querySelectorAll(".realm-mobile-item")).forEach((item) => {
+      const itemRegion = item.getAttribute("data-region");
+      item.classList.toggle("active", !!region && itemRegion === region);
+    });
+  }
+
   // ---- User Profile Modal ----
 
   async function openUserProfileModal(username) {
@@ -1174,6 +1185,35 @@
       `;
     }).join("");
 
+
+    // Create/update mobile region list
+    let mobileList = grid.parentElement.querySelector(".realm-mobile-list");
+    if (!mobileList) {
+      mobileList = document.createElement("div");
+      mobileList.className = "realm-mobile-list";
+      grid.parentElement.insertBefore(mobileList, grid.nextSibling);
+    }
+
+    mobileList.innerHTML = REGIONS.map((region) => {
+      const count = regionStories[region].length;
+      return `
+        <div class="realm-mobile-item" data-region="${region}">
+          <span class="realm-mobile-name">${region}</span>
+          <span class="realm-mobile-count">${count} ${count === 1 ? 'chapter' : 'chapters'}</span>
+        </div>
+      `;
+    }).join("");
+
+    // Add click handlers for mobile list items
+    Array.from(mobileList.querySelectorAll(".realm-mobile-item")).forEach((item) => {
+      const region = item.getAttribute("data-region");
+      item.addEventListener("click", () => {
+        filterEl.value = region;
+        renderRealmStories();
+        setActiveMobileRegion(region);
+      });
+    });
+
     // Clicking a region = choose that region in the dropdown + show stories + highlight
     Array.from(grid.querySelectorAll(".region-card")).forEach((card) => {
       const region = card.getAttribute("data-region");
@@ -1188,11 +1228,13 @@
     filterEl.onchange = () => {
       renderRealmStories();
       setActiveRegion(filterEl.value || "");
+      setActiveMobileRegion(filterEl.value || "");
     };
 
     // Initial render
     renderRealmStories();
     setActiveRegion(filterEl.value || "");
+    setActiveMobileRegion(filterEl.value || "");
   }
 
 

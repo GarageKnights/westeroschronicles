@@ -1043,18 +1043,6 @@ textarea.field {
 
 
 /* Small-screen fallback: stack regions under the map */
-@media (max-width: 680px) {
-  .realm-grid {
-    aspect-ratio: auto;
-    min-height: 480px;
-  }
-
-  .region-card {
-    position: static;
-    width: auto;
-    margin: 6px 8px;
-  }
-}
 
 
 
@@ -1557,4 +1545,71 @@ body[class*="Night"] .profile-card::before {
 
 .user-profile-modal .btn {
   margin: 16px 0 24px 0;
+}
+
+
+/* Mobile Realm Map */
+@media (max-width: 680px) {
+  .realm-grid {
+    aspect-ratio: 3 / 4;
+    min-height: 300px;
+    max-height: 450px;
+    margin-bottom: 24px;
+  }
+
+  /* Hide positioned labels on map for mobile */
+  .region-card {
+    display: none;
+  }
+}
+
+/* Mobile region clickable list */
+.realm-mobile-list {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .realm-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .realm-mobile-item {
+    background: var(--bg-elevated-soft);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .realm-mobile-item:hover,
+  .realm-mobile-item.active {
+    background: var(--bg-elevated);
+    border-color: var(--accent-soft);
+  }
+
+  .realm-mobile-item.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(244, 216, 138, 0.3);
+  }
+
+  .realm-mobile-name {
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-main);
+  }
+
+  .realm-mobile-count {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.3);
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
 }
