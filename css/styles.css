@@ -967,14 +967,14 @@ textarea.field {
 
 /* Beyond the Wall — place above the Wall ridge */
 .region-card[data-region="Beyond the Wall"] {
-  top: 10%;
+  top: 4%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 /* The North — centered around Winterfell */
 .region-card[data-region="The North"] {
-  top: 31%;
+  top: 24%;
   left: 47%;
   transform: translateX(-50%);
 }
@@ -1029,7 +1029,7 @@ textarea.field {
 }
 /* The Iron Islands */
 .region-card[data-region="The Iron Islands"] {
-  top: 57%;
+  top: 52%;
   left: 27%;
   transform: translateX(-50%);
 }
