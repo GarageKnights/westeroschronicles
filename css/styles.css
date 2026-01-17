@@ -1553,3 +1553,8 @@ body[class*="Night"] .profile-card::before {
   color: var(--accent);
   text-decoration: underline;
 }
+
+
+.user-profile-modal .btn {
+  margin: 16px 0 24px 0;
+}

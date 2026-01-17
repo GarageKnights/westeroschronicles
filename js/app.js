@@ -1046,6 +1046,8 @@
           ${profile.house ? `<p class="user-house">of ${escapeHtml(profile.house)}</p>` : ""}
           ${profile.bio ? `<p class="user-bio">${escapeHtml(profile.bio)}</p>` : "<p class=\"user-bio muted\">This maester has written no words about themselves.</p>"}
           
+          ${currentUser && currentUser.username.toLowerCase() !== profile.username.toLowerCase() ? `<button class="btn btn-primary js-send-raven-to-user" type="button">Send Raven</button>` : ""}
+          
           <div class="user-stats">
             <div class="stat-item">
               <span class="stat-value">${userStories.length}</span>
@@ -1092,6 +1094,21 @@
             modal.setAttribute("hidden", "");
             openStoryModal(storyId);
           });
+        });
+      }
+
+      // Add Send Raven button handler
+      const sendRavenBtn = content.querySelector(".js-send-raven-to-user");
+      if (sendRavenBtn) {
+        sendRavenBtn.addEventListener("click", () => {
+          modal.setAttribute("hidden", "");
+          switchToTab("ravens");
+          // Pre-fill the recipient field
+          const recipientField = $("ravenRecipient");
+          if (recipientField) {
+            recipientField.value = profile.username;
+            recipientField.focus();
+          }
         });
       }
     } catch (e) {
