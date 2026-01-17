@@ -708,7 +708,7 @@
         <article class="story-card" data-id="${s.id}">
           <h3>${escapeHtml(s.title)}</h3>
           <div class="story-meta">
-            by <strong>${escapeHtml(s.author)}</strong>
+            by <strong class="author-link" data-author="${escapeHtml(s.author)}">${escapeHtml(s.author)}</strong>
             ${s.house ? ` of <em>${escapeHtml(s.house)}</em>` : ""}
             ${s.region ? ` • ${escapeHtml(s.region)}` : ""}
             ${s.createdAt ? ` • ${escapeHtml(formatDate(s.createdAt))}` : ""}
@@ -765,6 +765,16 @@
       voteButtons.forEach((btn) => {
         btn.addEventListener("click", () => handleVoteClick(story.id, btn));
       });
+      // Add author link click handler
+      const authorLink = card.querySelector(".author-link");
+      if (authorLink) {
+        authorLink.style.cursor = "pointer";
+        authorLink.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const author = authorLink.getAttribute("data-author");
+          openUserProfileModal(author);
+        });
+      }
     });
   }
 
@@ -994,6 +1004,114 @@
     });
   }
 
+
+  // ---- User Profile Modal ----
+
+  async function openUserProfileModal(username) {
+    const modal = $("userProfileModal");
+    const content = $("userProfileModalContent");
+    if (!modal || !content) return;
+
+    modal.removeAttribute("hidden");
+    content.innerHTML = "<p>Loading profile...</p>";
+
+    try {
+      // Fetch user profile by username
+      const { data: profile, error } = await window.supabaseClient
+        .from("profiles")
+        .select("*")
+        .ilike("username", username)
+        .maybeSingle();
+
+      if (error || !profile) {
+        content.innerHTML = "<p>User not found.</p>";
+        return;
+      }
+
+      // Fetch user's stories
+      const userStories = stories.filter(
+        (s) => s.author.toLowerCase() === username.toLowerCase()
+      );
+
+      // Calculate stats
+      const totalVotes = userStories.reduce((sum, s) => sum + getStoryScore(s), 0);
+      const totalBranches = userStories.reduce(
+        (sum, s) => sum + getChildrenOfStory(s.id).length,
+        0
+      );
+
+      content.innerHTML = `
+        <div class="user-profile-modal">
+          <h2 id="userProfileModalTitle">${escapeHtml(profile.username)}</h2>
+          ${profile.house ? `<p class="user-house">of ${escapeHtml(profile.house)}</p>` : ""}
+          ${profile.bio ? `<p class="user-bio">${escapeHtml(profile.bio)}</p>` : "<p class=\"user-bio muted\">This maester has written no words about themselves.</p>"}
+          
+          <div class="user-stats">
+            <div class="stat-item">
+              <span class="stat-value">${userStories.length}</span>
+              <span class="stat-label">Chapters Written</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${totalVotes}</span>
+              <span class="stat-label">Total Score</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${totalBranches}</span>
+              <span class="stat-label">Stories Inspired</span>
+            </div>
+          </div>
+
+          ${
+            userStories.length > 0
+              ? `
+            <h3>Recent Chapters</h3>
+            <div class="user-story-list">
+              ${userStories
+                .slice(0, 5)
+                .map(
+                  (s) => `
+                <div class="user-story-item" data-story-id="${s.id}">
+                  <h4>${escapeHtml(s.title)}</h4>
+                  <p class="muted">${s.region || ""} • ${formatDate(s.createdAt)}</p>
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          `
+              : "<p class=\"muted\">This maester has not yet penned any tales.</p>"
+          }
+        </div>
+      `;
+
+      // Add click handlers to story items
+      if (userStories.length > 0) {
+        content.querySelectorAll(".user-story-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            const storyId = item.getAttribute("data-story-id");
+            modal.setAttribute("hidden", "");
+            openStoryModal(storyId);
+          });
+        });
+      }
+    } catch (e) {
+      console.error("Error loading user profile:", e);
+      content.innerHTML = "<p>Error loading profile.</p>";
+    }
+  }
+
+  function initUserProfileModal() {
+    const closeBtn = $("closeUserProfileModalBtn");
+    const modal = $("userProfileModal");
+
+    if (closeBtn && modal) {
+      closeBtn.onclick = () => modal.setAttribute("hidden", "");
+      modal.onclick = (e) => {
+        if (e.target === modal) modal.setAttribute("hidden", "");
+      };
+    }
+  }
+
   // ---- Realm map ----
 
   function renderRealmMap() {
@@ -1091,7 +1209,7 @@
         <article class="story-card" data-id="${s.id}">
           <h3>${escapeHtml(s.title)}</h3>
           <div class="story-meta">
-            by <strong>${escapeHtml(s.author)}</strong>
+            by <strong class="author-link" data-author="${escapeHtml(s.author)}">${escapeHtml(s.author)}</strong>
             ${s.house ? ` of <em>${escapeHtml(s.house)}</em>` : ""}
             ${s.createdAt ? ` • ${escapeHtml(formatDate(s.createdAt))}` : ""}
           </div>
@@ -1113,6 +1231,16 @@
       const viewBtn = card.querySelector(".js-view-story");
       if (viewBtn) {
         viewBtn.addEventListener("click", () => openStoryModal(story.id));
+      }
+      // Add author link click handler
+      const authorLink = card.querySelector(".author-link");
+      if (authorLink) {
+        authorLink.style.cursor = "pointer";
+        authorLink.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const author = authorLink.getAttribute("data-author");
+          openUserProfileModal(author);
+        });
       }
     });
   }
@@ -1261,6 +1389,7 @@
     initTabs();
     initStoriesUI();
     initStoryModal();
+    initUserProfileModal();
     initProfileUI();
     initRavensUI();
     renderRealmMap();
