@@ -28,6 +28,19 @@
     </div>
 
     <div class="site-header-right">
+      <div id="notificationBell" class="notification-bell" style="display: none;">
+        <button type="button" class="bell-btn" aria-label="Notifications">
+          🔔
+          <span id="notificationCount" class="notification-count" hidden>0</span>
+        </button>
+        <div id="notificationDropdown" class="notification-dropdown" hidden>
+          <div class="notification-header">
+            <h4>Notifications</h4>
+            <button type="button" id="markAllReadBtn" class="btn-link">Mark all read</button>
+          </div>
+          <div id="notificationList" class="notification-list"></div>
+        </div>
+      </div>
       <div class="auth-links" id="authLinks"><!-- filled by JS --></div>
       <div class="user-status" id="userStatus"><!-- filled by JS --></div>
     </div>

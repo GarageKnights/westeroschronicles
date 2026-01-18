@@ -695,6 +695,20 @@
       }
 
       const newStory = mapStoryRow(data);
+      // Create notification if continuing a story
+      if (currentParentStoryId) {
+        const parentStory = getStoryById(currentParentStoryId);
+        if (parentStory && parentStory.authorId !== currentUser.id) {
+          await createNotification(
+            parentStory.authorId,
+            "story_continued",
+            "Someone continued your story!",
+            `${currentUser.username} wrote "${title}" continuing from "${parentStory.title}"`,
+            newStory.id
+          );
+        }
+      }
+
       if (quillEditor) quillEditor.setContents([]);
       stories.unshift(newStory);
 
@@ -1610,5 +1624,175 @@
 
     await initPostLogin();
     if (window.initDiscussions) await window.initDiscussions();
+    initNotifications();
   });
+
+  // ---- Notifications System ----
+
+  let notifications = [];
+  let unreadCount = 0;
+
+  async function loadNotifications() {
+    if (!currentUser) return;
+
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("notifications")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error("Error loading notifications:", error);
+        return;
+      }
+
+      notifications = data || [];
+      unreadCount = notifications.filter(n => !n.read).length;
+      updateNotificationUI();
+    } catch (e) {
+      console.error("Error loading notifications:", e);
+    }
+  }
+
+  function updateNotificationUI() {
+    const bell = $("notificationBell");
+    const countEl = $("notificationCount");
+    const listEl = $("notificationList");
+
+    if (!bell || !countEl || !listEl) return;
+
+    // Show/hide bell
+    bell.style.display = currentUser ? "block" : "none";
+
+    // Update count
+    if (unreadCount > 0) {
+      countEl.textContent = unreadCount > 99 ? "99+" : unreadCount;
+      countEl.removeAttribute("hidden");
+    } else {
+      countEl.setAttribute("hidden", "");
+    }
+
+    // Render notifications
+    if (notifications.length === 0) {
+      listEl.innerHTML = '<p class="muted" style="padding: 20px; text-align: center;">No notifications yet</p>';
+    } else {
+      listEl.innerHTML = notifications.map(n => `
+        <div class="notification-item ${n.read ? 'read' : 'unread'}" data-id="${n.id}" data-link="${n.link || ''}">
+          <div class="notification-content">
+            <strong>${escapeHtml(n.title)}</strong>
+            <p>${escapeHtml(n.message)}</p>
+            <span class="notification-time">${formatDate(n.created_at)}</span>
+          </div>
+          ${!n.read ? '<span class="unread-dot"></span>' : ''}
+        </div>
+      `).join("");
+
+      // Add click handlers
+      listEl.querySelectorAll(".notification-item").forEach(item => {
+        item.addEventListener("click", async () => {
+          const id = item.getAttribute("data-id");
+          const link = item.getAttribute("data-link");
+          
+          await markNotificationRead(id);
+          
+          if (link) {
+            // Close dropdown
+            $("notificationDropdown").setAttribute("hidden", "");
+            // Open the linked story
+            openStoryModal(link);
+          }
+        });
+      });
+    }
+  }
+
+  async function markNotificationRead(notificationId) {
+    const notification = notifications.find(n => n.id === notificationId);
+    if (!notification || notification.read) return;
+
+    notification.read = true;
+    unreadCount = Math.max(0, unreadCount - 1);
+    updateNotificationUI();
+
+    try {
+      await window.supabaseClient
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", notificationId);
+    } catch (e) {
+      console.error("Error marking notification read:", e);
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    if (unreadCount === 0) return;
+
+    notifications.forEach(n => n.read = true);
+    unreadCount = 0;
+    updateNotificationUI();
+
+    try {
+      await window.supabaseClient
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", currentUser.id)
+        .eq("read", false);
+    } catch (e) {
+      console.error("Error marking all read:", e);
+    }
+  }
+
+  async function createNotification(userId, type, title, message, link = null) {
+    try {
+      await window.supabaseClient
+        .from("notifications")
+        .insert({
+          user_id: userId,
+          type,
+          title,
+          message,
+          link
+        });
+    } catch (e) {
+      console.error("Error creating notification:", e);
+    }
+  }
+
+  function initNotifications() {
+    const bellBtn = document.querySelector(".bell-btn");
+    const dropdown = $("notificationDropdown");
+    const markAllBtn = $("markAllReadBtn");
+
+    if (bellBtn && dropdown) {
+      bellBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isHidden = dropdown.hasAttribute("hidden");
+        if (isHidden) {
+          dropdown.removeAttribute("hidden");
+        } else {
+          dropdown.setAttribute("hidden", "");
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!dropdown.hasAttribute("hidden") && !dropdown.contains(e.target) && e.target !== bellBtn) {
+          dropdown.setAttribute("hidden", "");
+        }
+      });
+    }
+
+    if (markAllBtn) {
+      markAllBtn.addEventListener("click", markAllNotificationsRead);
+    }
+
+    // Load notifications periodically
+    if (currentUser) {
+      loadNotifications();
+      setInterval(loadNotifications, 30000); // Every 30 seconds
+    }
+  }
+
 })();
