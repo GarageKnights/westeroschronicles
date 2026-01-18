@@ -1215,7 +1215,7 @@
         content.querySelectorAll(".user-story-item").forEach((item) => {
           item.addEventListener("click", () => {
             const storyId = item.getAttribute("data-story-id");
-            modal.setAttribute("hidden", "");
+            modal.hidden = true;
             openStoryModal(storyId);
           });
         });
@@ -1225,7 +1225,7 @@
       const sendRavenBtn = content.querySelector(".js-send-raven-to-user");
       if (sendRavenBtn) {
         sendRavenBtn.addEventListener("click", () => {
-          modal.setAttribute("hidden", "");
+          modal.hidden = true;
           switchToTab("ravens");
           // Pre-fill the recipient field
           const recipientField = $("ravenRecipient");
@@ -1246,9 +1246,9 @@
     const modal = $("userProfileModal");
 
     if (closeBtn && modal) {
-      closeBtn.onclick = () => modal.setAttribute("hidden", "");
+      closeBtn.onclick = () => modal.hidden = true;
       modal.onclick = (e) => {
-        if (e.target === modal) modal.setAttribute("hidden", "");
+        if (e.target === modal) modal.hidden = true;
       };
     }
   }
