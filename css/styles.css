@@ -1688,3 +1688,75 @@ body[class*="Night"] .profile-card::before {
   color: #8b0000;
   font-weight: 700;
 }
+
+
+/* Story Tree Visualization */
+.story-tree-section {
+  margin: 24px 0;
+}
+
+.story-tree-container {
+  margin-top: 16px;
+  padding: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tree-item {
+  padding: 10px 12px;
+  margin: 4px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.tree-item:hover {
+  background: var(--bg-elevated-soft);
+  transform: translateX(4px);
+}
+
+.tree-current {
+  background: rgba(139, 0, 0, 0.2);
+  border-left: 3px solid #8b0000;
+}
+
+.tree-current:hover {
+  background: rgba(139, 0, 0, 0.3);
+}
+
+.tree-connector {
+  color: var(--text-muted);
+  white-space: pre;
+  font-family: monospace;
+}
+
+.tree-title {
+  color: var(--text-main);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tree-author {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.tree-badge {
+  margin-left: auto;
+  background: #8b0000;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: sans-serif;
+}

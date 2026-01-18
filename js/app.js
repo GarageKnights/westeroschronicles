@@ -58,6 +58,56 @@
   }
 
 
+
+  // ---- Story Tree Visualization ----
+
+  function buildStoryTree(rootStory) {
+    const tree = [];
+    
+    function traverse(story, depth = 0) {
+      tree.push({ story, depth });
+      const children = getChildrenOfStory(story.id);
+      children.forEach(child => traverse(child, depth + 1));
+    }
+    
+    traverse(rootStory);
+    return tree;
+  }
+
+  function renderStoryTree(currentStoryId) {
+    const currentStory = getStoryById(currentStoryId);
+    if (!currentStory) return "";
+    
+    const root = getRootOfStory(currentStory);
+    const tree = buildStoryTree(root);
+    
+    return tree.map(({ story, depth }) => {
+      const isCurrent = story.id === currentStoryId;
+      const indent = "  ".repeat(depth);
+      const connector = depth === 0 ? "" : depth === 1 ? "├── " : "│   ".repeat(depth - 1) + "├── ";
+      
+      return `
+        <div class="tree-item ${isCurrent ? 'tree-current' : ''}" data-story-id="${story.id}" style="padding-left: ${depth * 20}px;">
+          <span class="tree-connector">${connector}</span>
+          <span class="tree-title">${escapeHtml(story.title)}</span>
+          <span class="tree-author">by ${escapeHtml(story.author)}</span>
+          ${isCurrent ? '<span class="tree-badge">← You are here</span>' : ''}
+        </div>
+      `;
+    }).join("");
+  }
+
+  function toggleStoryTree() {
+    const container = document.querySelector(".story-tree-container");
+    if (!container) return;
+    
+    if (container.style.display === "none") {
+      container.style.display = "block";
+    } else {
+      container.style.display = "none";
+    }
+  }
+
   function formatDate(dateStr) {
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
@@ -970,6 +1020,13 @@
           }
         </p>
       </div>
+      <div class="story-tree-section">
+        <button type="button" class="btn btn-sm js-toggle-tree">📊 View Story Tree</button>
+        <div class="story-tree-container" style="display: none;">
+          ${renderStoryTree(story.id)}
+        </div>
+      </div>
+
 
       <section class="story-modal-comments">
         <h4>Comments</h4>
@@ -998,6 +1055,20 @@
     `;
 
     modal.hidden = false;
+
+    // Story tree toggle
+    const treeToggleBtn = container.querySelector(".js-toggle-tree");
+    if (treeToggleBtn) {
+      treeToggleBtn.addEventListener("click", toggleStoryTree);
+    }
+    
+    // Story tree item clicks
+    container.querySelectorAll(".tree-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const storyId = item.getAttribute("data-story-id");
+        if (storyId) openStoryModal(storyId);
+      });
+    });
 
     const commentBtn = $("modalCommentBtn");
     if (commentBtn) {
