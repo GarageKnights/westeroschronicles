@@ -606,7 +606,10 @@
 
     const title = ($("storyTitle").value || "").trim();
     const region = $("storyRegion").value || "";
-    const content = ($("storyContent").value || "").trim();
+    const content = quillEditor ? quillEditor.root.innerHTML.trim() : ($("storyContent").value || "").trim();
+
+    // Check if content is empty (Quill returns <p><br></p> when empty)
+    const isEmpty = !content || content === "<p><br></p>" || content === "<p></p>";
 
     if (!title || !content) {
       showError("Title and content are required.");
