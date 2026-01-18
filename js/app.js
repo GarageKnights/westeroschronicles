@@ -1603,6 +1603,7 @@
     } else {
       currentUser = null; // guest mode
     }
+    window.currentUser = currentUser;
 
     renderUserStatus();
     updateAuthLinks();
