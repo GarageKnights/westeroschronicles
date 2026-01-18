@@ -1613,3 +1613,57 @@ body[class*="Night"] .profile-card::before {
     border-radius: 12px;
   }
 }
+/* Quill Rich Text Editor */
+#quill-editor {
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  min-height: 300px;
+  color: var(--text-main);
+}
+
+.ql-toolbar {
+  background: var(--bg-elevated-soft);
+  border: 1px solid var(--border-subtle) !important;
+  border-bottom: none !important;
+  border-radius: 8px 8px 0 0;
+}
+
+.ql-container {
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 0 0 8px 8px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.ql-editor {
+  min-height: 300px;
+  color: var(--text-main);
+}
+
+.ql-editor.ql-blank::before {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ql-stroke {
+  stroke: var(--text-muted) !important;
+}
+
+.ql-fill {
+  fill: var(--text-muted) !important;
+}
+
+.ql-picker-label {
+  color: var(--text-muted) !important;
+}
+
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--accent) !important;
+}
+
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar button.ql-active .ql-fill {
+  fill: var(--accent) !important;
+}

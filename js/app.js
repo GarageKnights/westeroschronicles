@@ -546,6 +546,36 @@
     });
   }
 
+  // ---- Quill Rich Text Editor ----
+  let quillEditor = null;
+
+  function initQuillEditor() {
+    const editorContainer = document.getElementById('storyContent');
+    if (!editorContainer) return;
+
+    // Hide the textarea and create Quill container
+    editorContainer.style.display = 'none';
+    
+    const quillContainer = document.createElement('div');
+    quillContainer.id = 'quill-editor';
+    editorContainer.parentNode.insertBefore(quillContainer, editorContainer.nextSibling);
+
+    quillEditor = new Quill('#quill-editor', {
+      theme: 'snow',
+      placeholder: 'Write your chapter in the style of Westeros...',
+      modules: {
+        toolbar: [
+          [{ 'header': [2, 3, false] }],
+          ['bold', 'italic', 'underline'],
+          ['blockquote'],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['clean']
+        ]
+      }
+    });
+  }
+
+
   function initStoriesUI() {
     const submitBtn = $("submitStoryBtn");
     const clearParentBtn = $("clearParentBtn");
@@ -605,6 +635,7 @@
       }
 
       const newStory = mapStoryRow(data);
+      if (quillEditor) quillEditor.setContents([]);
       stories.unshift(newStory);
 
       $("storyTitle").value = "";
@@ -910,7 +941,7 @@
         ${story.region ? ` • ${escapeHtml(story.region)}` : ""}
         ${story.createdAt ? ` • ${escapeHtml(formatDate(story.createdAt))}` : ""}
       </div>
-      <div class="story-modal-body">${escapeHtml(story.content)}</div>
+      <div class="story-modal-body">${story.content}</div>
 
       <div class="story-modal-thread">
         <p class="muted">
@@ -1447,6 +1478,7 @@
 
     initTabs();
     initStoriesUI();
+    initQuillEditor();
     initStoryModal();
     initUserProfileModal();
     initProfileUI();
