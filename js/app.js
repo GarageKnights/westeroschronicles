@@ -1608,5 +1608,6 @@
     updateAuthLinks();
 
     await initPostLogin();
+    if (window.initDiscussions) await window.initDiscussions();
   });
 })();
