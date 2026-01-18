@@ -243,7 +243,7 @@ body {
   background: rgba(12, 7, 5, 0.92);
   backdrop-filter: blur(10px);
   position: sticky;
-  top: 70px;
+  top: 80px;
   z-index: 999;
 }
 
