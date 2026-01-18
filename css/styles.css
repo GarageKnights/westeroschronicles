@@ -1667,3 +1667,24 @@ body[class*="Night"] .profile-card::before {
 .ql-toolbar button.ql-active .ql-fill {
   fill: var(--accent) !important;
 }
+
+
+/* Story modal thread info */
+.story-modal-thread {
+  margin: 24px 0;
+  padding: 16px;
+  background: var(--bg-elevated-soft);
+  border-left: 3px solid #8b0000;
+  border-radius: 4px;
+}
+
+.story-modal-thread .muted {
+  color: #999;
+  font-weight: 600;
+  margin: 0;
+}
+
+.story-modal-thread strong {
+  color: #8b0000;
+  font-weight: 700;
+}

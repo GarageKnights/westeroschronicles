@@ -51,6 +51,13 @@
     }
   }
 
+  function stripHtml(html) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  }
+
+
   function formatDate(dateStr) {
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
@@ -729,10 +736,11 @@
 
     listEl.innerHTML = filtered
       .map((s) => {
+        const plainText = stripHtml(s.content);
         const excerpt =
-          s.content.length > 240
-            ? s.content.slice(0, 240) + "…"
-            : s.content;
+          plainText.length > 240
+            ? plainText.slice(0, 240) + "…"
+            : plainText;
 
         const score = getStoryScore(s);
         const branchCount = getChildrenOfStory(s.id).length;
@@ -1293,10 +1301,11 @@
 
     listEl.innerHTML = filtered
       .map((s) => {
+        const plainText = stripHtml(s.content);
         const excerpt =
-          s.content.length > 160
-            ? s.content.slice(0, 160) + "…"
-            : s.content;
+          plainText.length > 160
+            ? plainText.slice(0, 160) + "…"
+            : plainText;
 
         return `
         <article class="story-card" data-id="${s.id}">
